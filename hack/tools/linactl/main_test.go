@@ -425,6 +425,9 @@ func TestRunEnvSetupInstallsFrontendAndPlaywright(t *testing.T) {
 	application := newApp(ioDiscard{}, ioDiscard{}, strings.NewReader(""))
 	application.root = root
 	application.env = append(os.Environ(), "LINACTL_TEST_CAPTURE_DIRS="+capturePath)
+	application.lookPath = func(name string) (string, error) {
+		return name, nil
+	}
 	var commands []string
 	application.execCommand = func(_ context.Context, name string, args ...string) *exec.Cmd {
 		commands = append(commands, name+" "+strings.Join(args, " "))
@@ -449,6 +452,28 @@ func TestRunEnvSetupInstallsFrontendAndPlaywright(t *testing.T) {
 	}
 	if !strings.Contains(string(content), filepath.Join(root, "hack", "tests")) {
 		t.Fatalf("env.setup should install Playwright in hack/tests:\n%s", string(content))
+	}
+}
+
+// TestRunCommandReportsMissingToolBeforeExecution verifies command execution
+// keeps actionable PATH diagnostics without invoking the child process.
+func TestRunCommandReportsMissingToolBeforeExecution(t *testing.T) {
+	application := newApp(ioDiscard{}, ioDiscard{}, strings.NewReader(""))
+	application.lookPath = func(name string) (string, error) {
+		return "", fmt.Errorf("%s not found", name)
+	}
+	application.execCommand = func(_ context.Context, name string, args ...string) *exec.Cmd {
+		t.Fatalf("missing tool should not execute child command: %s %s", name, strings.Join(args, " "))
+		return exec.Command(os.Args[0], "-test.run=TestHelperCommandFailure", "--")
+	}
+
+	err := application.runCommand(context.Background(), commandOptions{}, "pnpm", "install")
+	if err == nil {
+		t.Fatalf("expected missing tool error")
+	}
+	expected := `required tool "pnpm" is not available in PATH while running pnpm install`
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected missing tool diagnostic %q, got %v", expected, err)
 	}
 }
 

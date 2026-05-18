@@ -26,6 +26,7 @@ func newApp(stdout io.Writer, stderr io.Writer, stdin io.Reader) *app {
 		stdin:       stdin,
 		env:         os.Environ(),
 		execCommand: exec.CommandContext,
+		lookPath:    exec.LookPath,
 		waitHTTP:    devservice.WaitHTTP,
 	}
 }
@@ -85,7 +86,7 @@ type commandOptions = toolrun.Options
 
 // runCommand executes a child command with consistent error messages.
 func (a *app) runCommand(ctx context.Context, options commandOptions, name string, args ...string) error {
-	if _, err := exec.LookPath(name); err != nil && !filepath.IsAbs(name) {
+	if _, err := a.lookPath(name); err != nil && !filepath.IsAbs(name) {
 		return fmt.Errorf("required tool %q is not available in PATH while running %s: %w", name, strings.Join(append([]string{name}, args...), " "), err)
 	}
 

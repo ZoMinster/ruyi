@@ -47,6 +47,7 @@ type app struct {
 	env  []string
 
 	execCommand func(context.Context, string, ...string) *exec.Cmd
+	lookPath    func(string) (string, error)
 	waitHTTP    func(string, string, string, string, time.Duration) error
 }
 
