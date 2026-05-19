@@ -177,7 +177,7 @@ export class RolePage {
     await this.selectDataScope(drawer, "全部数据");
 
     // Select menus if needed - for basic test we skip menu selection
-    // Menu selection is tested separately in TC0061e
+    // Menu selection is tested separately in TC001e
 
     // Click confirm button - scroll into view first since dialog may be taller than viewport
     const confirmBtn = drawer.getByRole("button", { name: /确\s*认/ });

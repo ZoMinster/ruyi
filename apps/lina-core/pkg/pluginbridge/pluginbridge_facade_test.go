@@ -23,7 +23,7 @@ func TestFacadeRequestEnvelopeMatchesCodec(t *testing.T) {
 		PluginID: "linapro-demo-dynamic",
 		Route: &RouteMatchSnapshotV1{
 			Method:       http.MethodPost,
-			PublicPath:   "/api/v1/extensions/linapro-demo-dynamic/items/42",
+			PublicPath:   "/x/linapro-demo-dynamic/items/42",
 			InternalPath: "/items/:id",
 			RoutePath:    "/items/{id}",
 			Access:       AccessLogin,
@@ -38,8 +38,8 @@ func TestFacadeRequestEnvelopeMatchesCodec(t *testing.T) {
 		},
 		Request: &HTTPRequestSnapshotV1{
 			Method:      http.MethodPost,
-			PublicPath:  "/api/v1/extensions/linapro-demo-dynamic/items/42",
-			RawPath:     "/api/v1/extensions/linapro-demo-dynamic/items/42",
+			PublicPath:  "/x/linapro-demo-dynamic/items/42",
+			RawPath:     "/x/linapro-demo-dynamic/items/42",
 			RawQuery:    "verbose=true",
 			Host:        "localhost:8080",
 			ContentType: "application/json",

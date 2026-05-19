@@ -385,7 +385,7 @@ func TestEvaluatePostgreSQLConfigFailureIncludesRemark(t *testing.T) {
 	writeFile(t, filepath.Join(root, "apps", "lina-core", "manifest", "config", "config.yaml"), `
 database:
   default:
-    link: "sqlite::@file(./temp/sqlite/linapro.db)"
+    link: "mysql:root:secret@tcp(127.0.0.1:3306)/linapro"
 `)
 	application := newApp(ioDiscard{}, ioDiscard{}, strings.NewReader(""))
 	application.root = root

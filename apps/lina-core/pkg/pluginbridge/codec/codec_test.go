@@ -46,7 +46,7 @@ func TestEncodeDecodeRequestEnvelopeRoundTrip(t *testing.T) {
 		PluginID: "linapro-demo-dynamic",
 		Route: &RouteMatchSnapshotV1{
 			Method:       http.MethodGet,
-			PublicPath:   "/api/v1/extensions/linapro-demo-dynamic/review-summary",
+			PublicPath:   "/x/linapro-demo-dynamic/review-summary",
 			InternalPath: "/review-summary",
 			RoutePath:    "/review-summary",
 			Access:       AccessLogin,
@@ -61,9 +61,9 @@ func TestEncodeDecodeRequestEnvelopeRoundTrip(t *testing.T) {
 		},
 		Request: &HTTPRequestSnapshotV1{
 			Method:       http.MethodGet,
-			PublicPath:   "/api/v1/extensions/linapro-demo-dynamic/review-summary",
+			PublicPath:   "/x/linapro-demo-dynamic/review-summary",
 			InternalPath: "/review-summary",
-			RawPath:      "/api/v1/extensions/linapro-demo-dynamic/review-summary",
+			RawPath:      "/x/linapro-demo-dynamic/review-summary",
 			RawQuery:     "q=hello",
 			Host:         "localhost:8080",
 			Scheme:       "http",
