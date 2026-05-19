@@ -63,6 +63,8 @@
 - [x] **FB-5**: E2E 测试文件名前缀不再全局递增，改为按当前模块目录从 `TC001` 开始递增。
 - [x] **FB-6**: `extension:plugin` 分片中动态插件资源“仅本人”数据权限和插件管理动作权限夹具在 plugin-full 环境失败。
 - [x] **FB-7**: GitHub Actions host-only E2E 仍运行部分 plugin-full 或插件依赖用例，导致共享种子和宿主断言失败。
+- [x] **FB-8**: GitHub Actions plugin-full E2E 中动态插件示例记录和英文布局回归用例存在跨用例状态泄漏。
+- [x] **FB-9**: 完整 E2E 中角色新增/编辑抽屉会在异步初始化完成后覆盖已填写字段，导致提交未发出角色保存请求。
 
 ## Feedback 验证记录
 
@@ -116,3 +118,20 @@
 - FB-7 已通过 `pnpm -C hack/tests exec tsc --noEmit`、`pnpm -C hack/tests test:validate`、`openspec validate optimize-e2e-suite-runtime --strict` 和 `git diff --check`。
 - FB-7 i18n 影响：本次只调整 E2E 环境分支、断言和跳过逻辑，不新增或修改前端运行时文案、插件 manifest i18n 或 apidoc i18n JSON。
 - FB-7 缓存一致性影响：本次不修改生产缓存逻辑；动态插件用例改为通过 UI 重新加载宿主投影观察实际缓存刷新效果，避免测试侧直接写权限表造成缓存状态与真实运行路径不一致。
+- FB-8 已为 Vite 开发服务补充 `/x` 代理到后端运行时，避免动态插件页面在 dev origin 下请求 `/x/linapro-demo-dynamic/demo-records` 时命中 Vite 404；同时补齐该配置的 node 级 TypeScript 校验保护。
+- FB-8 已让动态插件运行时 E2E 清理 `sys_plugin_migration` 与示例记录表状态，分页种子显式写入 `tenant_id=0`，并在页面断言前通过后端 `/x/linapro-demo-dynamic/demo-records` API 等待示例数据可见。
+- FB-8 已让英文运行时页面巡检在每个用例前卸载并清理动态插件数据，防止跨用例迁移状态泄漏；源码示例英文布局回归在前置步骤中显式启用 `linapro-org-core`，确保英文侧栏断言自包含。
+- FB-8 已通过动态插件与源码示例精确回归：`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests exec playwright test ../apps/lina-plugins/linapro-demo-dynamic/hack/tests/e2e/runtime/TC001-runtime-wasm-lifecycle.ts ../apps/lina-plugins/linapro-demo-dynamic/hack/tests/e2e/runtime/TC003-english-runtime-page-audit.ts ../apps/lina-plugins/linapro-demo-source/hack/tests/e2e/host-integration/TC006-english-layout-regression.ts --config playwright.config.ts --project=chromium --workers=1`，结果 `15 passed (4.4m)`。
+- FB-8 已通过 plugin-full 分片回归：`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests test:module -- extension:plugin`，结果 `26 passed, 1 skipped (2.2m)`；`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests test:module -- plugins`，结果 `272 passed, 7 skipped (25.7m)`。
+- FB-8 i18n 影响：本次只调整 E2E 状态清理、测试前置条件、后端可见性等待和 Vite dev proxy，不新增或修改前端运行时文案、插件 manifest i18n 或 apidoc i18n JSON；现有英文布局和英文动态页面 E2E 已覆盖英文展示不回退。
+- FB-8 缓存一致性影响：本次不修改生产缓存逻辑；动态插件 E2E 通过卸载、清理迁移记录、重新安装启用和 API 可见性等待验证真实运行路径，避免测试环境残留的本地或数据库状态影响跨用例一致性。
+- FB-9 已修复角色页面 POM 在新增/编辑角色抽屉中与权限树异步初始化的竞态：打开抽屉后等待权限工具栏和首行菜单树渲染完成，普通创建/编辑路径预先标记权限导览已读，提交时等待 `POST /api/v1/role` 或 `PUT /api/v1/role/{id}` 响应并确认抽屉关闭。
+- FB-9 已通过角色精确回归：`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests exec playwright test e2e/iam/role/TC001-role-crud.ts e2e/iam/role/TC004-role-permission-drawer-close.ts --config playwright.config.ts --project=chromium --workers=1`，结果 `13 passed (52.6s)`。
+- FB-9 i18n 影响：本次只调整 E2E 页面对象的等待与导览处理，不新增或修改用户可见文本、语言包、插件 manifest i18n 或 apidoc i18n JSON。
+- FB-9 缓存一致性影响：本次不修改生产缓存逻辑；角色 POM 仅等待前端权限树初始化和角色保存响应，不改变权限缓存、角色授权缓存或跨实例失效语义。
+- 本次完整单元测试已通过 host-only Go 单元测试：`cp apps/lina-core/manifest/config/config.template.yaml apps/lina-core/manifest/config/config.yaml && make init confirm=init rebuild=true && make pack.assets && LINA_TEST_PGSQL_LINK='pgsql:postgres:postgres@tcp(127.0.0.1:5432)/linapro?sslmode=disable' make test.go plugins=0 race=true verbose=true`。
+- 本次完整单元测试已通过 plugin-full Go 单元测试：`cp apps/lina-core/manifest/config/config.template.yaml apps/lina-core/manifest/config/config.yaml && make init confirm=init rebuild=true && make pack.assets && LINA_TEST_PGSQL_LINK='pgsql:postgres:postgres@tcp(127.0.0.1:5432)/linapro?sslmode=disable' make test.go plugins=1 race=true verbose=true`。
+- 本次完整前端单元测试已通过：`pnpm -C apps/lina-vben test:unit`，结果 `Test Files 42 passed (42)`、`Tests 347 passed (347)`。
+- 本次完整 host-only E2E 已通过：`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests test:host`，结果 `244 passed, 1 skipped (14.6m)`。
+- 本次完整 plugin-full E2E 已通过：`E2E_BROWSER_CHANNEL=chrome E2E_BASE_URL=http://127.0.0.1:5666 E2E_API_BASE_URL=http://127.0.0.1:8080/api/v1/ E2E_PUBLIC_BASE_URL=http://127.0.0.1:8080 pnpm -C hack/tests test`，结果 `516 passed, 8 skipped (42.8m)`。
+- 本次最终静态与治理验证已通过：`pnpm -C apps/lina-vben exec tsc -p apps/web-antd/tsconfig.node.json --noEmit`、`pnpm -C hack/tests exec tsc --noEmit`、`pnpm -C hack/tests test:validate`、`openspec validate optimize-e2e-suite-runtime --strict` 和 `git diff --check`。

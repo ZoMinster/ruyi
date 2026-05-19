@@ -480,9 +480,18 @@ export default defineConfig(async () => {
             // dev mode, so the frontend dev server must proxy these requests.
             target: 'http://localhost:8080',
           },
+          '/x': {
+            changeOrigin: true,
+            // Dynamic plugin backend routes share the frontend origin in
+            // production; dev mode proxies them to the backend runtime.
+            target: 'http://localhost:8080',
+          },
           '/stoplight/apidocs.html': {
             target: 'http://localhost:8080',
             bypass(_req, res) {
+              if (!res) {
+                return;
+              }
               // Serve the static HTML file directly, bypassing Vite's SPA fallback
               if (!cachedApidocsHtml) {
                 const filePath = join(
