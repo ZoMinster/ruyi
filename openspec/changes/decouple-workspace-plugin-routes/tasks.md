@@ -72,6 +72,7 @@
 - [x] **FB-14**: 参考 `linapro-content-notice` 源码插件的路由注册编码风格，统一其他官方源码插件的路由注册代码结构。
 - [x] **FB-15**: 修复已有根通配路由 `/*` 存在时工作台 `/admin` 静态资源 fallback 被抢占并返回 404 的单元测试失败。
 - [x] **FB-16**: 允许独立管理后台域名部署将 `workspace.basePath` 配置为根路径 `/`，同时保留宿主 API、插件 API 与插件资产保留命名空间不被工作台 fallback 吞掉。
+- [x] **FB-17**: 修复 `make test.go` 在 `lina-core/internal/service/role` 编译失败，原因是测试替身未实现新增的工作台入口配置读取接口。
 
 ## Verification Notes
 
@@ -84,3 +85,5 @@
 - FB-14 `/lina-review`：审查范围限定为官方源码插件 `backend/plugin.go` 路由注册结构与本任务记录；未发现阻塞问题。
 - FB-15 为后端工作台与插件公开资产静态路由绑定修复，不新增用户可见文案、接口字段、数据操作接口、业务缓存、开发工具或脚本；i18n、数据权限和缓存资源无需变更。已验证：`cd apps/lina-core && go test ./internal/cmd -run '^(TestFrontendAssetFallbackIsScopedToWorkspaceBasePath|TestFrontendAssetFallbackClaimsHostedPluginAssetNamespace)$' -count=1 -v`、`cd apps/lina-core && go test ./internal/cmd -count=1`、`openspec validate decouple-workspace-plugin-routes --strict`、`git diff --check -- apps/lina-core/internal/cmd/cmd_http_frontend.go apps/lina-core/internal/cmd/cmd_http_test.go openspec/changes/decouple-workspace-plugin-routes/tasks.md`。
 - FB-16 为工作台入口路径配置与 fallback 行为修复；新增/更新了后端配置校验、后端静态资源 fallback、前端运行时 basePath 规范化、E2E workspace path helper、README 与 OpenSpec 文档，并补充根路径工作台不覆盖 `/api/**`、`/x/**`、`/x-assets/**`、后置绑定 `/api.json` 仍可访问，以及已有 `/` 路由会与根路径工作台显式冲突的回归测试。用户可见接口文档文本涉及 `FrontendWorkspaceRes.basePath`，已同步源资源 `manifest/i18n/zh-CN/apidoc/core-api-publicconfig.json`；`internal/packed/manifest/**` 为忽略的生成镜像，不纳入本次提交范围。不新增数据操作接口、业务缓存、开发工具或脚本，数据权限与缓存资源无需变更。工作台 fallback 单测使用自包含内存前端资源，不依赖未跟踪的 `internal/packed/public/index.html` 生成产物；插件资产路由注册由 `/x-assets//*any` 规范化为 `/x-assets/*any`；SPA fallback 改为直接读取 `index.html`，避免 `http.FileServer` 在根路径工作台刷新场景触发 `index.html` 重定向。已验证：`cd apps/lina-core && go test ./internal/service/config -count=1`、`cd apps/lina-core && go test ./internal/cmd -count=1`、`pnpm -C apps/lina-vben exec vitest run apps/web-antd/src/runtime/public-frontend.test.ts --dom`、`openspec validate decouple-workspace-plugin-routes --strict`、`git diff --check`、残留文本扫描确认非根/拒绝根路径表述已清理。
+- FB-17 为后端测试替身接口同步修复，不修改生产代码、用户可见文案、REST API、数据操作接口、业务缓存、开发工具或脚本；i18n、数据权限和缓存资源无需变更。已验证：`cd apps/lina-core && go test -race ./internal/service/role -count=1`。
+- FB-17 `/lina-review`：审查范围为 `role_access_cache_test.go` 测试替身接口同步和本任务记录；未发现阻塞问题。该修复仅补齐测试 fake 的 `WorkspaceConfigReader` 方法，未修改生产代码、API、i18n、缓存或数据权限边界。

@@ -42,6 +42,7 @@
 - [x] **FB-1**: `linapro-monitor-server` PostgreSQL 单测未注册 `pgsql` 驱动导致 `g.DB()` 初始化 panic。
 - [x] **FB-2**: `make init` 在 clean checkout 中因 `internal/packed/public` 没有被跟踪的嵌入文件而无法编译 `go:embed all:public`。
 - [x] **FB-3**: `plugindb/host` 的元数据读与 schema probe 判定包含 PostgreSQL 专属 SQL 字符串，导致插件数据治理层与具体数据库实现强绑定。
+- [x] **FB-4**: `linapro-monitor-server` 仍保留 SQLite 专属单测和模块依赖，导致 `make test.go` 在 SQLite 方言已移除后失败。
 
 ## Feedback 验证记录
 
@@ -80,3 +81,12 @@
 - 数据权限影响：本次不新增或修改 HTTP/API 数据操作接口；插件数据服务原有表级治理继续在 `DoCommit` 阶段校验授权资源表，本次只移动数据库方言分类边界。
 - 开发工具影响：本次不新增或修改开发工具、脚本、CI 默认入口或平台相关命令。
 - 审查：`/lina-review` 已完成；审查范围为 `pkg/dialect` 只读 SQL 分类抽象、`pkg/plugindb/host` 表级治理调用点、相关单元测试与 `remove-sqlite-support` 反馈记录，未发现阻断问题。
+
+- FB-4 修复：将 `linapro-monitor-server` monitor 单测从 SQLite 临时库迁移为 PostgreSQL-only 集成测试；真实 upsert 和 DB version 断言仅在显式设置 `LINA_TEST_PGSQL_LINK` 时运行，默认全量单元测试环境只执行自包含的 PostgreSQL driver factory smoke；同时运行 `go mod tidy` 移除该插件模块中的 SQLite driver、glebarez、modernc SQLite 依赖链。
+- 验证通过：`GOWORK=/Users/john/Workspace/github/linaproai/linapro/temp/go.work.plugins go test -p=1 -race lina-plugin-linapro-monitor-server/backend/internal/service/monitor -count=1`。
+- 静态扫描通过：`rg -n "sqlite|SQLite|go-sqlite|modernc.org/sqlite|glebarez" apps/lina-plugins/linapro-monitor-server -g '!**/node_modules/**'` 无匹配。
+- i18n 影响：本次仅修改后端测试、插件模块依赖和 OpenSpec 反馈记录，不新增、修改或删除用户可见文案、运行时语言包、插件 `manifest/i18n` 或 apidoc i18n JSON。
+- 缓存影响：本次不新增或修改运行时缓存、缓存键、失效触发点、跨实例同步机制或缓存一致性模型。
+- 数据权限影响：本次不新增或修改 HTTP/API 数据操作接口、数据库查询路径或角色数据权限边界；仅调整测试数据库后端。
+- 开发工具影响：本次不新增或修改开发工具、脚本、CI 默认入口或平台相关命令。
+- FB-4 `/lina-review`：审查范围为 `linapro-monitor-server` monitor 单测 PostgreSQL-only 迁移、插件模块依赖清理和本任务记录；未发现阻塞问题。测试仍自包含保存并恢复 GoFrame DB 配置，真实 PostgreSQL 集成断言需要显式 `LINA_TEST_PGSQL_LINK`，默认全量单元测试无需外部数据库。

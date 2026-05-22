@@ -27,6 +27,16 @@ type fakeRoleConfigService struct {
 	sessionTimeout time.Duration
 }
 
+// GetWorkspace returns the admin workspace config used by role access-cache tests.
+func (f *fakeRoleConfigService) GetWorkspace(ctx context.Context) *hostconfig.WorkspaceConfig {
+	return &hostconfig.WorkspaceConfig{BasePath: f.GetWorkspaceBasePath(ctx)}
+}
+
+// GetWorkspaceBasePath returns the default admin workspace base path for tests.
+func (f *fakeRoleConfigService) GetWorkspaceBasePath(_ context.Context) string {
+	return "/admin"
+}
+
 // GetCluster returns the cluster config used by the test service.
 func (f *fakeRoleConfigService) GetCluster(_ context.Context) *hostconfig.ClusterConfig {
 	return &hostconfig.ClusterConfig{Enabled: f.clusterEnabled}
