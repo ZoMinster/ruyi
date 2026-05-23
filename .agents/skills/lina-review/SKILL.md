@@ -11,7 +11,7 @@ compatibility: 依赖 OpenSpec CLI、GoFrame v2 技能、lina-e2e 技能。
 
 `OpenSpec` 开发工作流的结构化代码与规范审查。
 
-**规范来源**：`AGENTS.md` 及其显式引用的规则文件是审查标准的唯一事实来源；涉及 `i18n` 时必须读取 `.agents/rules/i18n.md`。
+**规范来源**：`AGENTS.md` 及其显式引用的 `.agents/rules/*.md` 是审查标准的唯一事实来源。审查必须先读取 `AGENTS.md`，再按其中的强制规则加载矩阵识别审查范围命中的规则域，并读取所有对应规则文件。未读取命中规则文件的审查结论无效，不得据此标记任务完成、反馈完成或执行归档。
 
 **交互语言**：与用户交互的内容语言（如审查结果展示）以用户上下文使用的语言为准，用户使用英文则使用英文，用户使用中文则使用中文。
 
@@ -64,7 +64,24 @@ compatibility: 依赖 OpenSpec CLI、GoFrame v2 技能、lina-e2e 技能。
 
 ### 2. 加载关键规范
 
-读取 `AGENTS.md` 加载通用规范；若审查范围涉及 `i18n`、API 文档本地化、语言包、翻译资源或相关缓存，则继续读取 `.agents/rules/i18n.md` 并以该规则文件作为 `i18n` 治理细则来源。
+读取 `AGENTS.md` 加载顶层规范入口，并按其强制规则加载矩阵识别审查范围命中的所有规则域。
+
+**强制规则：**
+1. 命中后端 Go、Controller、Middleware、Service、插件后端或 WASM host service 时，必须读取 `.agents/rules/backend-go.md`。
+2. 命中 HTTP API、路由、DTO、OpenAPI 元数据或响应字段时，必须读取 `.agents/rules/api-contract.md`。
+3. 命中 SQL、Seed/Mock 数据、DAO 生成、软删除或数据库时间字段时，必须读取 `.agents/rules/database.md`。
+4. 命中缓存、快照、失效、刷新、单机/集群一致性时，必须读取 `.agents/rules/cache-consistency.md`。
+5. 命中数据操作、数据可见性、数据权限边界时，必须读取 `.agents/rules/data-permission.md`。
+6. 命中源码插件目录、动态插件目录、插件同构开发结构、插件后端、插件前端或插件生命周期资源时，必须读取 `.agents/rules/plugin.md`。
+7. 命中前端页面、组件、路由、适配器、表格、表单或 UI 交互时，必须读取 `.agents/rules/frontend-ui.md`。
+8. 命中单元测试、E2E、反馈修复测试覆盖或治理验证时，必须读取 `.agents/rules/testing.md`。
+9. 命中开发工具、脚本、`linactl`、CI 或跨平台入口时，必须读取 `.agents/rules/dev-tooling.md`。
+10. 命中 OpenSpec 提案、设计、任务、反馈、审查或归档时，必须读取 `.agents/rules/openspec.md`。
+11. 命中文档编写、目录级 `README` 或 Markdown 格式时，必须读取 `.agents/rules/documentation.md`。
+12. 命中模块设计、字典枚举、模块启停或宿主边界时，必须读取 `.agents/rules/architecture.md`。
+13. 命中 `i18n`、API 文档本地化、语言包、翻译资源、用户可见文案、错误消息或相关缓存时，必须读取 `.agents/rules/i18n.md`。
+
+禁止仅凭记忆、历史上下文、摘要或此前读取记录替代本次读取。若命中规则文件不存在、无法读取或存在无法调和的冲突，审查必须报告为严重问题并阻塞任务完成或归档。
 
 ### 3. 后端代码审查
 
@@ -270,6 +287,7 @@ compatibility: 依赖 OpenSpec CLI、GoFrame v2 技能、lina-e2e 技能。
 **范围：** <任务级 / 全部变更>
 **审查文件数：** <数量>
 **范围来源：** `git status --short` + `git ls-files --others --exclude-standard` + 任务/变更上下文
+**已读取规则文件：** <列出按 AGENTS.md 命中的 .agents/rules/*.md>
 
 ### 后端代码审查
 ✓ 全部通过 / ⚠ 发现 N 个问题
@@ -337,7 +355,8 @@ compatibility: 依赖 OpenSpec CLI、GoFrame v2 技能、lina-e2e 技能。
 
 ## 硬性规则
 
-- **`AGENTS.md` 及其显式引用的规则文件是唯一事实来源** — `i18n` 细则统一引用 `.agents/rules/i18n.md`
+- **`AGENTS.md` 及其显式引用的规则文件是唯一事实来源** — 审查必须按 `AGENTS.md` 强制规则加载矩阵读取所有命中的 `.agents/rules/*.md`
+- **未读取命中规则文件的审查结论无效** — 不得据此标记任务完成、反馈完成或执行归档
 - 仅检查与变更文件相关的类别
 - 范围识别必须包含未跟踪文件和展开的未跟踪目录；永远不要仅依赖 `git diff`
 - 警告不阻塞 — 仅严重问题阻塞归档
