@@ -63,3 +63,7 @@ E2E 运行时把“跨文件共享全局状态”当成一等治理对象。mani
 ## 完整测试套件稳定性
 
 完整测试套件稳定化只修复测试替身、测试依赖装配和 fixture 与当前核心契约不一致的问题。修复范围不得借机改变产品功能边界、接口语义或页面行为。Go 单元测试、前端测试和 Playwright E2E 的失败应按真实依赖、真实断言和可重复环境逐项收敛。
+
+## Cross-Domain Impacts
+
+- E2E治理迭代调整过`project-setup`中的`make env.setup` Playwright headless shell安装语义，以及测试入口对管理工作台路径和源码插件公开路径的区分；当前项目初始化契约由`openspec/specs/project-setup/spec.md`承载，历史owner为`archive/foundation`。

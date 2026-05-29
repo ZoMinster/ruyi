@@ -1,101 +1,62 @@
 ## 为什么
 
-LinaPro 需要一个正式、稳定且可扩展的插件平台,支持编译到宿主的源码插件、可动态安装的 WASM 运行时插件、前端页面集成、后端钩子与插槽扩展点、权限治理、多节点热升级,以及为动态插件提供完整的宿主服务能力模型。没有统一的插件契约、生命周期管理、运行时加载、宿主服务治理、启动自动化和安装用户体验,系统无法在不侵入性修改核心代码的情况下可持续地扩展业务能力。
+LinaPro 需要一个稳定、可扩展且可治理的插件平台，使业务能力能够通过源码插件和动态插件持续交付，而不是反复侵入`apps/lina-core`核心宿主。插件平台必须同时覆盖清单契约、生命周期、动态`WASM`运行时、前后端集成、宿主服务授权、依赖与升级治理、启动自动化、包边界和多节点一致性，才能支撑“面向可持续交付的`AI`原生全栈框架”定位。
+
+早期方案同时牵引了集群、发布、菜单、角色、认证、监控、`E2E`和开发工具等能力。压缩后的归档将插件框架自身作为长期历史 owner，只保留插件平台的核心演进和决策；其他能力只在设计文档中保留交叉影响摘要，当前契约以`openspec/specs/<capability>/spec.md`为准。
 
 ## 变更内容
 
-- 定义统一插件契约,以 `plugin.yaml` 作为入口清单,覆盖 `apps/lina-plugins/<plugin-id>/` 下的源码插件和从 `plugin.dynamic.storagePath` 发现的动态插件。
-- 建立插件生命周期状态机:发现、安装、启用、禁用、卸载、升级和热更新,源码插件和动态插件具有不同的语义。
-- 实现动态 WASM 插件运行时加载,包括清单校验、自定义段产物解析、前端资源提取与托管,以及基于 `wazero` 的执行。
-- 构建动态插件 REST 运行时,从 `g.Meta` 提取路由契约,在 `/api/v1/extensions/{pluginId}/...` 进行固定前缀分发,由宿主管理认证和权限检查,使用 protobuf 桥接信封,并通过真实 WASM 桥执行(带 501 降级)。
-- 通过 `go:embed` 统一动态插件资源声明,构建器读取嵌入资源并转换为宿主可治理的快照自定义段。
-- 将宿主服务能力从离散操作码扩展为结构化宿主服务模型,包括 `runtime`、`storage`、`network`、`data`、`cache`、`lock`、`notify` 和 `config` 服务,每项服务都具有资源授权、执行上下文和审计。
-- 通过宿主主配置文件中的 `plugin.autoEnable` 添加启动自动启用,在插件装配前设置专用引导阶段,具有快速失败行为和集群感知的主节点执行。引导阶段必须在任何源码插件生命周期写入后同步启动快照,以便同一启动编排中的后续启用检查读取最新的已安装状态。
-- 在插件安装对话框中添加安装并启用快捷方式,具有权限控制、部分成功消息传递和 E2E 覆盖。
-- 添加模拟数据安装支持,包括 `installMockData` 选项、事务性模拟 SQL 执行、结构化回滚错误和启动引导集成。
-- 在授权审查对话框中与宿主服务授权一起显示动态路由暴露,包括后端路由投影和可折叠路由列表。
-- 使插件列表查询只读、为宿主服务表注释提供安全元数据查找,以及会话活动写入节流。
-- 收敛集群部署拓扑:`cluster.enabled` 开关、`cluster.Service` 作为唯一拓扑门面、领导选举作为内部实现细节,以及通过世代模型实现插件运行时收敛。
-- 使用解析为 `time.Duration` 的时长字符串统一 `jwt.expire`、`session.timeout`、`session.cleanupInterval` 和 `monitor.interval` 的时长配置。
-- 使用 `sys_notify_channel`、`sys_notify_message` 和 `sys_notify_delivery` 表重建通知域,替换 `sys_user_message`。
-- 为静态 API 建立声明式权限中间件,具有访问上下文缓存和基于拓扑修订的失效。
-- 将插件配置服务从特定于插件的 `GetMonitor()` 泛化为业务中性的只读访问器,将每个插件的配置结构、默认值和验证保留在插件内部。为动态插件添加 `config` 宿主服务。
-- 规范化插件 ID,具有基本安全边界强制(非空、最大 64 字符、kebab-case)、官方插件 ID 结构化命名约定(`<author>-<domain>-<capability>` 作为推荐),以及将所有 10 个官方插件重命名为 `linapro-*` 前缀的破坏性更改。
-- 添加插件清单 `dependencies` 声明,支持框架版本约束和插件依赖约束,具有依赖解析、拓扑自动安装、反向依赖保护,以及在 API 和 UI 中显示依赖检查结果。
-- 引入运行时升级状态模型,将文件发现与运行时状态分离,具有 `pending_upgrade`/`abnormal`/`upgrade_failed` 状态、显式升级预览和执行 API、统一生命周期回调(`Before*`/`After*` 替换旧的 `Can*` 守卫),以及集群一致的升级协调。
-- 启用官方插件工作区作为可选子模块,具有仅宿主构建/测试验证,并提供插件工作区管理命令(`plugins.init`/`plugins.install`/`plugins.update`/`plugins.status`),基于 `hack/config.yaml` 的源声明。
-- 在构建时从访客控制器方法自动发现动态插件生命周期处理器,消除手动 `backend/lifecycle/*.yaml` 声明,同时保留产物嵌入契约作为运行时权威。
-- 通过 `HostServices.Cache()` 暴露源码插件作用域缓存门面,为插件私有 KV 缓存提供租户隔离、命名空间隔离和集群后端选择。
-- Extend dynamic plugin lifecycle with `Upgrade` and `Uninstall` execution-phase callbacks, `Before*`/`After*` lifecycle for tenant disable/delete, and typed manifest snapshot bridge contract.
-- 收敛插件公共包与宿主私有实现边界：`pkg/plugin`下的`pluginhost`、`pluginbridge`和`capability`分别承载源码插件贡献入口、动态插件 ABI/transport 和插件消费宿主能力；宿主插件运行时、provider 可用性、资源扫描、数据执行器和升级治理保留在宿主内部边界。
-- 收窄插件能力目录，普通插件消费面只暴露 DTO 化、批量化、只读和可降级能力；禁止通过公共能力目录泄漏`DAO`、`DO`、`Entity`、`*gdb.Model`、`*ghttp.Request`、宿主写入路径或数据权限注入能力。
-- 为插件自身运行配置、宿主公开配置和插件`manifest/`声明资源建立统一只读访问边界，源码插件与动态插件共享同一资源视图。
-- 将默认管理工作台入口边界与插件路由解耦：工作台默认从`/admin`服务，插件 API 统一走`/x/{plugin-id}/api/v1`，公开插件资产统一走`/x-assets/{plugin-id}/{version}/...`，源码插件可注册非保留公开路由。
-- 强化动态插件运行时安全和恢复：所有 WASM 执行入口具备超时与内存边界，生命周期 SQL 与迁移账本事务同成同败，集群模式下使用 per-plugin 分布式互斥，协调器支持 stale 状态恢复和 panic recovery。
-- 优化插件管理列表首次加载：同一请求复用清单与依赖快照，宿主启动后异步预热完整读模型，并在插件生命周期、动态产物和租户供应策略变化后显式失效。
+- 建立统一插件契约，以`plugin.yaml`、源码插件目录和动态插件发布产物作为插件身份、资源、依赖、菜单、权限和生命周期的事实入口。
+- 定义源码插件和动态插件生命周期，覆盖发现、安装、启用、禁用、卸载、升级、同版本刷新、租户级生命周期和失败诊断。
+- 构建动态`WASM`插件运行时，包括自定义段解析、运行时资源视图、前端资产、动态路由、桥接协议、生命周期自动发现和执行资源边界。
+- 建立统一宿主服务模型，通过`hostServices`授权快照和`pkg/plugin/capability`能力目录向动态插件和源码插件暴露受治理的配置、manifest、数据、缓存、锁、网络、通知、组织、租户和业务上下文能力。
+- 收敛插件公共包边界：`pluginhost`负责源码插件贡献，`pluginbridge`负责动态插件`ABI`与 transport，`capability`负责插件消费宿主能力；宿主插件运行时治理保留在`internal/service/plugin`。
+- 支持插件页面、菜单、公开资产、工作台动态路由和插件管理读模型，并将统一插件`API`命名空间收敛到`/x/{plugin-id}/api/v1/...`，公开资产收敛到`/x-assets/{plugin-id}/{version}/...`。
+- 引入`plugin.autoEnable`启动引导、事务性 mock data 安装、安装并启用快捷操作、插件依赖检查、运行时升级预览和显式升级执行。
+- 支持官方插件工作区可选化和插件工作区管理命令，使宿主可在 host-only 与 plugin-full 模式下分别构建、测试和发布。
 
 ## Capabilities
 
 ### New Capabilities
-- `plugin-manifest-lifecycle`: Unified plugin directory structure, manifest schema, resource ownership, install/enable/disable/uninstall/upgrade lifecycle, manifest-driven menu governance, plugin ID safety validation, and dependency declaration recognition.
-- `plugin-runtime-loading`: Dynamic WASM plugin discovery, validation, loading, hot-switch, generation propagation, multi-node convergence, and build-time lifecycle contract auto-discovery from guest controller methods.
-- `plugin-hook-slot-extension`: Backend hooks, frontend slots, callback registration extension points, execution order, failure isolation, and observability.
-- `plugin-ui-integration`: Plugin page mounting (iframe, new-tab, embedded-mount), frontend resource hosting, slot outlet rendering, generation-aware refresh prompts, and host-only empty workspace tolerance.
-- `plugin-permission-governance`: Plugin menu and permission reuse of Lina governance modules, role authorization persistence across disable/enable cycles, and runtime permission context.
-- `plugin-embed-snapshot-packaging`: Dynamic plugin `go:embed` resource declaration, builder snapshot generation, and directory-scan fallback compatibility.
-- `plugin-host-service-extension`: Structured host-service protocol, capability auto-derivation from `hostServices`, resource authorization at install/enable time, and execution context with audit.
-- `plugin-storage-service`: Logical storage space isolation, path-prefix authorization, and `put/get/delete/list/stat` methods.
-- `plugin-network-service`: Outbound HTTP via authorized URL patterns with scheme/host/port/path matching and default-deny.
-- `plugin-data-service`: Table-level data access via structured CRUD/transaction methods, DAO/ORM execution, `DoCommit` interception, and `plugindb` guest SDK.
-- `plugin-cache-service`: Distributed KV cache via MySQL `MEMORY` table with namespace isolation, strict length validation, and expiry cleanup. Extended with source-plugin scoped facade through `HostServices.Cache()` for plugin-private KV cache with tenant isolation, namespace isolation, and cluster backend selection.
-- `plugin-lock-service`: Named lock resources reusing host distributed lock with ticket-based renew/release.
-- `plugin-notify-service`: Unified notification domain with channel-based send, message records, and delivery tracking.
-- `plugin-config-service`: Business-neutral read-only configuration access for plugins, including arbitrary key reads, section scanning, basic type parsing, `time.Duration` parsing, and a `config` host service for dynamic plugins.
-- `plugin-startup-bootstrap`: `plugin.autoEnable` config, startup bootstrap phase, source/dynamic branching, fail-fast, cluster-aware primary execution, startup snapshot synchronization after source plugin lifecycle writes, and dependency-aware auto-enable with deterministic topological ordering.
-- `plugin-mock-data-installation`: Optional mock-data loading during install, transactional mock SQL, structured rollback errors, and startup bootstrap integration.
-- `plugin-api-query-performance`: Read-only plugin list queries, safe metadata lookup, and session activity write throttling.
-- `plugin-install-enable-shortcut`: Install-and-enable shortcut in the installation dialog with permission gating and partial-success messaging.
-- `demo-control-guard`: Demo read-only mode controlled by plugin enabled state (`linapro-ops-demo-guard`), with clear write-blocking messages and minimal session whitelist.
-- `system-api-docs`: OpenAPI projection of dynamic plugin routes with runtime-aware response semantics.
-- `cluster-deployment-mode`: `cluster.enabled` switch, single-node default, and cluster-aware plugin lifecycle.
-- `cluster-topology-boundaries`: `cluster.Service` as sole topology facade with election encapsulation.
-- `config-duration-unification`: Unified duration-string configuration for `jwt.expire`, `session.timeout`, `session.cleanupInterval`, and `monitor.interval`.
-- `plugin-id-governance`: Plugin ID basic safety boundary enforcement (non-empty, 64-char max, kebab-case), official plugin ID normalization mapping, runtime identity consistency, and governance validation for directory names, manifest IDs, source registration IDs, menu keys, i18n namespaces, and apidoc namespaces.
-- `plugin-dependency-management`: Plugin manifest `dependencies` declaration with framework version constraints and plugin dependency constraints, dependency resolution with topological sorting, automatic installation of discovered hard dependencies, reverse-dependency protection on uninstall, and dependency check results exposed via API and UI.
-- `plugin-runtime-upgrade`: Runtime upgrade state model (`normal`, `pending_upgrade`, `abnormal`, `upgrade_running`, `upgrade_failed`), startup version drift scanning with status marking (not fail-fast), explicit upgrade preview and execution APIs, unified lifecycle callback model (`Before*`/`After*` replacing old `Can*` guards), upgrade failure diagnostics and retry, and cluster-consistent cache invalidation.
-- `plugin-workspace-management`: Plugin workspace de-submodulization, `hack/config.yaml` based plugin source declaration, `plugins.init`/`plugins.install`/`plugins.update`/`plugins.status` cross-platform commands, lock file state tracking, and local dirty protection.
-- `official-plugin-workspace-decoupling`: Official source plugin workspace as optional submodule, host-only build/test verification without plugin workspace, plugin-full verification with submodule initialized, and CI matrix separation.
-- `plugin-package-boundary-governance`: Unified `pkg/plugin` public namespace, import boundaries for `pluginhost`/`pluginbridge`/`capability`, and removal of legacy top-level plugin public packages.
-- `plugin-capability-boundary-governance`: Separation of ordinary capability consumption, provider-facing contracts, dynamic guest clients, and host-internal governance interfaces.
-- `framework-capability-registry`: Framework capability provider factories, lazy provider availability, and stable capability consumption through governed plugin services.
-- `workspace-route-boundary`: Management workspace entry, SPA fallback scope, plugin API namespace, public asset namespace, and source-plugin route ownership boundaries.
+
+- `plugin-manifest-lifecycle`
+- `plugin-runtime-loading`
+- `plugin-host-service-extension`
+- `plugin-capability-boundary-governance`
+- `plugin-package-boundary-governance`
+- `pluginbridge-subcomponent-architecture`
+- `plugin-config-service`
+- `plugin-data-service`
+- `plugin-cache-service`
+- `plugin-lock-service`
+- `plugin-network-service`
+- `plugin-notify-service`
+- `plugin-storage-service`
+- `plugin-hook-slot-extension`
+- `plugin-ui-integration`
+- `plugin-embed-snapshot-packaging`
+- `plugin-id-governance`
+- `plugin-dependency-management`
+- `plugin-startup-bootstrap`
+- `plugin-mock-data-installation`
+- `plugin-install-enable-shortcut`
+- `plugin-runtime-upgrade`
+- `plugin-upgrade-governance`
+- `plugin-workspace-management`
+- `official-plugin-workspace-decoupling`
+- `framework-capability-registry`
+- `workspace-route-boundary`
+- `plugin-api-query-performance`
+- `plugin-permission-governance`
 
 ### Modified Capabilities
-- `menu-management`: Plugin menu ownership, `menu_key` stability, manifest-driven sync, visibility linkage with plugin state, and plugin autonomous parent mount point selection.
-- `role-management`: Plugin menu and permission authorization with persistence across disable/enable cycles.
-- `user-auth`: Authentication lifecycle hooks for plugins with failure isolation.
-- `module-decoupling`: Plugin dimension extension for graceful degradation when disabled, missing, or upgrading.
-- `online-user`: Duration-string session config and throttled `last_active_time` writes.
-- `server-monitor`: Duration-string monitor interval and cluster-aware cleanup.
-- `cron-jobs`: Primary-node-only vs all-node task classification with cluster mode awareness; cron declaration visibility split into executable handler publishing, authorization preview, and installed declaration projection.
-- `leader-election`: Cluster-mode-only election with single-node bypass.
-- `source-upgrade-governance`: Removed old development-time upgrade entry requirements; retained framework metadata display requirements.
-- `plugin-upgrade-governance`: Source plugin upgrade moved from development-time command to runtime explicit upgrade model; unified dynamic plugin upgrade boundary.
-- `project-setup`: Host initialization commands must support host-only workspace; plugin source management through `hack/config.yaml` and `linactl` commands.
-- `e2e-suite-organization`: E2E test suite must support host-only and plugin-full separation; plugin workspace missing does not block host test discovery.
-- `release-image-build`: Standard build must distinguish host-only build from full build with official plugin submodule.
-- `core-host-boundary-governance`: Plugin runtime, capability providers and host service adapters must stay behind stable host-owned contracts without leaking internal implementation or management-workbench assumptions.
-- `plugin-data-service`: Plugin data access must remain behind governed data capabilities and guest SDKs; public capability directories cannot expose host DB models or data-scope injection internals.
-- `plugin-config-service`: Plugin config reads are plugin-scoped by default, host config reads are explicit whitelist reads, and manifest resource reads are constrained to the current plugin.
-- `plugin-runtime-loading`: Dynamic runtime loading includes stronger WASM resource controls, public path namespace changes, runtime cache coordination ownership, management read-model invalidation and recovery from stale runtime states.
-- `plugin-host-service-extension`: Source-plugin services, dynamic host services and provider construction environments are narrowed to the exact capability surface needed by callers.
+
+- `menu-management`、`role-management`、`user-auth`、`cron-jobs`、`cluster-deployment-mode`、`cluster-topology-boundaries`、`distributed-locker`、`leader-election`、`project-setup`、`release-image-build`、`e2e-suite-organization`、`server-monitor`、`online-user`、`core-host-boundary-governance`、`module-decoupling`、`service-dependency-injection-governance`、`source-upgrade-governance`和`system-api-docs`只保留插件相关交叉影响摘要，不再由本分组长期保存完整规范全文。
 
 ## Impact
 
-- Backend: New plugin registration, lifecycle management, runtime loading, hook bus, resource indexing, host-service dispatch, multi-node convergence, startup bootstrap with snapshot synchronization, declarative permission middleware, notification domain, cluster topology infrastructure, generalized plugin configuration service, plugin ID governance, dependency resolution engine, runtime upgrade orchestration, unified lifecycle callbacks, and source-plugin cache facade.
-- Frontend: Plugin page mounting protocol, resource access mechanism, slot extension registry, generation-aware refresh prompts, install-and-enable shortcut, mock-data checkbox, route exposure review in authorization dialog, dynamic routing adjustments, dependency plan display, runtime upgrade state and actions, and host-only empty workspace tolerance.
-- Data layer: New tables for `sys_plugin`, `sys_plugin_release`, `sys_plugin_migration`, `sys_plugin_resource_ref`, `sys_plugin_node_state`, `sys_plugin_state`, `sys_kv_cache`, `sys_notify_channel`, `sys_notify_message`, `sys_notify_delivery`, and removal of `sys_user_message`.
-- Build and delivery: `apps/lina-plugins/` source scanning, `hack/build-wasm` builder for WASM artifacts, `go:embed` resource declaration, unified output directory, build-time lifecycle auto-discovery, host-only vs plugin-full build modes, and CI matrix separation.
-- Configuration: `plugin.autoEnable`, `cluster.enabled`, `cluster.election.*`, duration-string keys, host-service authorization snapshots, `hack/config.yaml` plugin sources, and workspace management lock files.
-- Developer tools: `linactl plugins.init`/`plugins.install`/`plugins.update`/`plugins.status` commands, `linactl test.go`/`test.host`/`test.plugins`/`test.scripts` test matrix, and cross-platform `make` wrappers.
-- Governance: public plugin package imports, capability exposure, dynamic bridge boundaries, management workspace route boundaries and source-plugin namespaces are validated by compile-time, static scan or OpenSpec review evidence.
+- 后端影响集中在插件注册、运行时加载、生命周期编排、`WASM`桥接、host service、能力目录、启动引导、升级治理、缓存一致性和插件管理读模型。
+- 前端影响集中在插件管理、动态页面承载、插件菜单和路由刷新、公开资产引用、安装与升级弹窗，以及插件状态变化后的用户体验保护。
+- 数据和配置影响集中在插件治理表、发布快照、迁移账本、资源引用、`plugin.autoEnable`、插件运行期配置、manifest 资源和动态产物快照。
+- 构建与工具影响集中在`build-wasm`、host-only/plugin-full 构建测试、插件工作区管理命令和发布链路。
+- 本归档压缩不修改运行时代码、数据库、`API`、前端页面或插件源码；当前能力契约以`openspec/specs`为准，归档仅保留历史设计和治理原因。

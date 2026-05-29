@@ -1,361 +1,83 @@
-## Context
+# Design
 
-LinaPro's extension model previously relied on direct source modification of the host codebase. The plugin platform establishes a unified contract, lifecycle, runtime, governance, and host-service capability model covering source plugins compiled into the host, dynamically installable WASM runtime plugins, frontend page integration, backend hook/slot extensions, permission governance, multi-node hot upgrade, startup automation, installation UX, structured host-service capabilities for dynamic plugins, plugin ID governance, dependency management, runtime upgrade, official plugin workspace decoupling, and plugin workspace management.
+## 插件契约和生命周期
 
-## 1. Plugin Contract and Lifecycle
+插件平台以`plugin.yaml`为统一入口，源码插件使用`apps/lina-plugins/<plugin-id>/`目录，动态插件使用发布产物和 active release 快照。清单承载插件身份、类型、版本、菜单、权限、`hostServices`、依赖声明、运行期配置和 manifest 资源索引；未声明的能力不得由运行时自行推断。
 
-### 1.1 Unified Plugin Contract
+生命周期从“源码目录扫描 + 动态产物装载”演进为显式治理模型。源码插件可被发现、安装、启用、禁用、升级和通过启动引导自动启用；动态插件覆盖上传、安装、授权确认、启用、禁用、卸载、升级、同版本刷新和 active release 切换。插件业务入口在`pending_upgrade`、`abnormal`或`upgrade_failed`状态下必须受控，插件管理和升级入口仍保持可访问。
 
-All plugins use `plugin.yaml` as the entry manifest. Source plugins reside under `apps/lina-plugins/<plugin-id>/`; dynamic plugins are discovered from `plugin.dynamic.storagePath`. The manifest requires only `id`, `name`, `version`, and `type` (`source` or `dynamic`). Dynamic plugin `wasm` is the runtime artifact semantic, not a first-level type.
+生命周期回调统一使用`Before*`、`Upgrade`、`Uninstall`和`After*`命名，替代旧`Can*`或 guard 风格契约。`Before*`可阻断操作并返回稳定原因键，`After*`作为 best-effort 通知；卸载相关回调携带`purgeStorageData`，使插件区分保留数据和清理数据两种卸载策略。动态插件生命周期契约由构建期自动发现 guest controller 方法生成，运行时只信任产物内显式生命周期 custom section。
 
-SQL, frontend pages, slots, menus, and permissions follow directory and code conventions rather than being redundantly declared in the manifest. Menu registration uses manifest `menus` metadata with `menu_key` as the stable business identifier and `parent_key` for parent resolution. Plugins may declare `dependencies` for framework version constraints and plugin dependency constraints.
+插件生命周期 SQL、mock SQL、upgrade SQL、rollback SQL 和`sys_plugin_migration`账本必须保持事务一致。失败诊断需要保留原始失败、rollback 失败、失败阶段、错误码、消息键和 manifest 快照，避免只记录 warning 后丢失恢复依据。
 
-### 1.2 Plugin Lifecycle State Machine
+## 动态运行时和路由资产边界
 
-Source plugins are discovered via directory scanning and registered in `sys_plugin`. On first sync they enter a discovered-only state; administrators or `plugin.autoEnable` advance them to installed and enabled. The management page does not expose install/uninstall for source plugins.
+动态插件运行时以`WASM`产物自定义段为权威输入。`pluginbridge`集中解析`WASM`自定义段，`i18n`、`apidoc`和插件运行时不得维护重复解析器。运行时资源视图绑定 active release checksum 或 generation，包含 manifest、默认配置、前端资产、路由契约、生命周期契约、`hostServices`授权快照和语言资源。
 
-Dynamic plugins follow the full lifecycle: upload to staging, install with migration execution and resource registration, enable with authorization confirmation, disable with hook/slot/page/menu suspension, uninstall with governance resource cleanup, and upgrade with generation-based hot-switch.
+路由边界经历了从`/api/v1/extensions/{pluginId}/...`到统一插件`API`命名空间的收敛。最终设计中源码插件和动态插件`API`均使用`/x/{plugin-id}/api/v1/...`，`/x`只表示插件`API`命名空间；源码插件公开页面、门户、自管静态资源和 fallback 使用非保留路径。公开资产由`plugin.yaml public_assets`声明，并通过`/x-assets/{plugin-id}/{version}/...`托管，不再保留`/plugin-assets`兼容入口。
 
-Upgrade uses `desired_state/current_state/generation/release_id` state machine. The primary node Reconciler drives shared migrations and release switches; follower nodes converge local projections. Failed releases are marked `failed` and rolled back to the stable release.
+管理工作台入口从默认根路径收敛为可配置入口，默认`/admin`。工作台`SPA` fallback 只覆盖工作台入口及其子路径，不吞掉源码插件公开路由；`/api`、`/x`、`/x-assets`和已注册插件路由优先级高于工作台 fallback。
 
-### 1.3 Plugin Governance Resources
+所有动态`WASM`执行入口共享宿主资源边界。路由、cron、生命周期和发现执行在调用方已有 deadline 时不得放宽；没有 deadline 时使用宿主默认超时；内存分配超过上限时拒绝或终止本次执行。
 
-Five metadata tables track plugin state:
-- `sys_plugin`: Current install/enable state, type, error status
-- `sys_plugin_release`: Version, artifact info, resource paths, manifest snapshot
-- `sys_plugin_migration`: SQL migration execution records with `install`, `uninstall`, `mock`, and `upgrade` directions
-- `sys_plugin_resource_ref`: Ownership references for menus, configs, dicts, files, host-service resources
-- `sys_plugin_node_state`: Multi-node convergence state, heartbeat, and error info
+## 宿主服务和能力目录
 
-### 1.4 Unified Lifecycle Callback Model
+动态插件不直接获得宿主连接、`DAO`、`gdb.Model`、请求对象或内部 service。所有宿主能力通过版本化 host service envelope 进入`pkg/plugin/capability`能力目录或受控适配器。`hostServices`是动态插件的授权申请和运行时授权快照，不是 Go 公共能力集合。
 
-The project uses a unified lifecycle callback model replacing the old `Can*` guard pattern. Source plugins and dynamic plugins share the same `Before*`/`After*` operation names:
+源码插件和动态插件共享同一能力语义，只允许 transport 不同。源码插件通过 registrar、hook、cron 或 lifecycle 上下文接收`capability.Services`；动态插件通过`capability/guest`和`pluginbridge/protocol`发起 host service 调用，宿主先校验授权快照，再委托到同一能力实现。
 
-- `BeforeInstall` / `AfterInstall`: Pre-install veto and post-install notification
-- `BeforeUpgrade` / `Upgrade` / `AfterUpgrade`: Pre-upgrade veto, custom upgrade execution, and post-upgrade notification
-- `BeforeDisable` / `AfterDisable`: Pre-disable veto and post-disable notification
-- `BeforeUninstall` / `Uninstall` / `AfterUninstall`: Pre-uninstall veto, custom cleanup execution, and post-uninstall notification
-- `BeforeTenantDisable` / `AfterTenantDisable`: Tenant-level disable veto and notification
-- `BeforeTenantDelete` / `AfterTenantDelete`: Tenant deletion veto and notification
-- `BeforeInstallModeChange` / `AfterInstallModeChange`: Install mode switch veto and notification
+配置能力被拆为插件作用域配置和宿主公开配置。`HostServices.Config()`读取当前插件运行期配置，实际配置可来自源码插件目录、生产配置根或动态产物默认配置；`HostServices.HostConfig()`只能读取宿主显式白名单键。manifest 资源能力只读当前插件`manifest/`声明型资源，拒绝空根、绝对路径、路径穿越、`URL`和跨插件读取；`manifest/sql`、`manifest/i18n`和`manifest/config`仍由专用生命周期、`i18n`和配置管线处理。
 
-`Before*` callbacks return allow/deny decisions with stable reason keys; `After*` callbacks are best-effort event notifications. The `BeforeUninstall` and `AfterUninstall` callbacks receive `purgeStorageData` strategy to distinguish data-preserving from data-cleaning uninstall. The old `RegisterLifecycleGuard`, `CanUninstall`, `CanDisable`, `CanTenantDelete` interfaces are removed.
+数据能力通过结构化 data service 和`capability/data`受限 DSL 承载。动态插件按表、方法、字段、分页、排序、用户上下文和数据权限执行治理，不暴露 raw SQL。列表和投影接口必须批量化、有界装配，避免插件或宿主通过循环单条详情制造`N+1`。
 
-## 2. Dynamic Plugin Runtime
+缓存、锁、网络、通知和存储服务均以插件作用域授权为边界。缓存是有损缓存，不作为权限、配置、插件状态、业务数据或修订号事实源；集群模式使用 coordination 后端，单机模式可用 SQL table 后端。锁使用 ticket/owner token 隔离；网络按授权`URL`模式 default-deny；通知按授权 channel 发送；存储只暴露逻辑空间和对象，不泄漏物理路径。
 
-### 2.1 WASM Artifact and Loading
+## 包边界和内部实现
 
-Dynamic plugins compile to `.wasm` artifacts containing custom sections for manifest, frontend assets, install/uninstall SQL, route contracts, bridge ABI, host-service governance snapshot, lifecycle contracts, and capability declarations. The host validates file headers, ABI version, custom sections, and embedded manifest during upload.
+插件公共契约统一收敛到`pkg/plugin`命名空间。`pluginhost`只负责源码插件贡献入口，`pluginbridge`只负责动态插件`ABI`、transport 和公开协议出口，`capability`只负责插件消费宿主能力。历史`pluginservice`、`plugindb`和`sourceupgrade`公共入口被移除或内化，能力 client、data DSL 和 guest SDK 使用`pkg/plugin/capability/**`。
 
-The `wazero` runtime loads artifacts, calls `_initialize` if present, and provides a restricted execution environment. Frontend assets are extracted from custom sections and cached in memory, with startup warmup and request-time lazy loading fallback.
+宿主插件运行时治理收敛到`apps/lina-core/internal/service/plugin`及其职责明确的子组件。插件 catalog、runtime、host service adapter、runtime cache、lifecycle、integration、frontend、OpenAPI、WASM host service、管理投影和升级治理不再作为`internal/service`根层级的平行组件扩散。启动层只依赖`plugin`根 facade 或明确允许的受控子包，不直接导入`plugin/internal/<subcomponent>`。
 
-### 2.2 Build-Time Lifecycle Auto-Discovery
+框架能力 provider 使用窄接口和强类型 provider env。组织、租户等能力由独立 capability 组件维护 DTO、消费 service、fallback、delegation 和 provider factory；provider adapter 留在提供方插件内部，消费方通过能力 service 或插件依赖治理接缝访问，不直接 import 其他插件`backend/internal/**`。
 
-Dynamic plugin lifecycle contracts are auto-discovered at build time from guest controller methods. The `build-wasm` tool identifies methods matching source-plugin lifecycle naming conventions (`BeforeInstall`, `AfterInstall`, `BeforeUpgrade`, etc.) that satisfy guest dispatcher bridge handler signatures, and generates `LifecycleContract` entries written to the WASM `lina.plugin.backend.lifecycle` custom section.
+## 插件 UI、菜单和管理读模型
 
-`backend/lifecycle/*.yaml` files are demoted from required declarations to optional overrides, used only to customize `requestType`, `internalPath`, or `timeoutMs` for discovered operations. YAML declarations that reference non-existent handlers, duplicate operations, use invalid operations or old `Can*`/guard naming cause build failures. The host runtime continues to read only artifact-embedded lifecycle contracts; it never probes guest methods at runtime.
+插件页面支持`iframe`、新标签页和宿主嵌入式挂载。管理工作台只通过 manifest 菜单声明感知插件贡献的导航、权限和动态页面；源码插件通过代码注册的公开 HTTP 路由不自动投影为菜单、权限节点或 OpenAPI 路径。
 
-The lifecycle request manifest snapshot uses a shared typed bridge contract (`ManifestSnapshotV1`) from `pluginbridge/contract`, eliminating hand-written `map[string]interface{}` field names.
+插件菜单复用宿主菜单与角色授权体系，以`menu_key`作为生命周期锚点。插件禁用时菜单和按钮权限临时失效但授权关系保留，重新启用后恢复；动态路由生成的按钮权限必须挂在所属插件菜单下，而不是形成游离权限集合。
 
-### 2.3 Dynamic Route Runtime
+插件管理列表从副作用查询演进为只读读模型。`GET /plugins`不得写治理表；同步、上传、安装、卸载、启用、禁用、升级和租户供应策略变更显式失效读模型。列表读模型可在启动后预热，但必须保留详情、安装、卸载、升级和授权弹窗所需字段，不能通过删字段换取首屏速度。
 
-Route contracts are extracted from `backend/api/**/*.go` `g.Meta` during build and embedded in the `lina.plugin.backend.routes` custom section. The host restores `manifest.Routes` on artifact load.
+## 启动引导、依赖和升级
 
-Dynamic routes are fixed under `/api/v1/extensions/{pluginId}/...`. The host dispatches through standard `RouterGroup + Middleware` registration, performs route matching with path parameter support, applies authentication and permission checks based on `access` (`login`/`public`) and `permission` declarations, then executes through the WASM bridge.
+`plugin.autoEnable`从字符串列表演进为结构化条目，包含`id`和可选`withMockData`。启动引导在插件路由、cron 和动态前端包预热前执行，语义是按需安装再启用；列出的插件失败必须阻塞启动。引导阶段和后续接线复用同一启动快照，源码插件安装写入后必须同步更新快照，避免同一轮启用检查读取旧的未安装状态。
 
-The bridge uses protobuf-encoded `DynamicRouteBridgeRequestEnvelopeV1`/`DynamicRouteBridgeResponseEnvelopeV1` with versioned binary protocol. Text codecs are rejected. The guest exports `lina_dynamic_route_alloc` and `lina_dynamic_route_execute`; the host serializes the request snapshot, writes to guest memory, invokes execution, and deserializes the response.
+依赖治理最终收敛为硬插件依赖和框架版本约束。安装、启用、卸载、升级和发布切换前校验依赖存在性、版本范围、循环和反向依赖；插件清单不再维护软依赖或自动安装策略字段。若必须硬依赖 provider 插件，仍通过`dependencies.plugins`声明；可选 capability 通过`Available(ctx)`降级，不新增 capability 依赖模型。
 
-Dynamic route permissions are materialized as hidden menu items under `sys_menu.perms`, synchronized on plugin enable/disable/uninstall/version change.
+运行时升级显式分离发现版本和有效版本。启动扫描只标记`normal`、`pending_upgrade`、`abnormal`或失败状态，不自动升级、不切换 release、不执行 SQL。升级通过只读预览和有副作用执行`API`完成，执行链路按锁、状态重读、依赖校验、`BeforeUpgrade`、`Upgrade`、upgrade SQL、治理同步、release 切换、缓存失效和`AfterUpgrade`顺序推进。
 
-### 2.4 Host Functions and Host Services
+## 工作区、构建和验证边界
 
-Host services evolved from discrete opcodes (`host:log`, `host:state`, `host:db:*`) to a structured model. The `lina_env.host_call` entry is preserved but converged to a single `service invoke` channel. All capabilities are published through the host-service registry.
+官方插件工作区可选。host-only 模式下，宿主构建、宿主测试、前端扫描和源码插件发现不得要求`apps/lina-plugins`存在；plugin-full 模式下才要求官方插件工作区、官方插件测试、动态插件`WASM`构建和插件自有`E2E`。插件工作区管理命令负责从`hack/config.yaml`来源安装、更新、诊断和锁定插件目录，不把来源仓库作为嵌套 Git 仓库写入。
 
-The plugin declares `hostServices` in `plugin.yaml`; the builder validates and embeds them in a custom section. The host derives coarse-grained `capabilities` automatically from `hostServices.methods`. Runtime calls pass through capability check, service/method dispatch, resource authorization, execution context, and audit.
+动态插件构建器支持`go:embed`资源声明，并在迁移期保留目录扫描回退。最终`.wasm`和中间产物收敛到仓库根`temp/output/`或显式输出目录，不回写插件源码目录。发布产物必须保留与源码插件一致的 manifest、配置、metadata、SQL、i18n 和 public asset 路径语义。
 
-**Runtime service**: `log.write`, `state.get/set/delete`, `info.now/uuid/node`
-**Storage service**: `put/get/delete/list/stat` with logical path authorization via `resources.paths`, path normalization, prefix matching, and default-deny
-**Network service**: `request` with URL pattern authorization, scheme/host/port/path matching, glob wildcards, and platform-level header protection
-**Data service**: `list/get/create/update/delete/transaction` with table-level authorization via `resources.tables`, DAO/ORM execution through `gdb` interceptors, `DoCommit` governance, and `plugindb` guest SDK
-**Cache service**: `get/set/delete/incr/expire` via MySQL `MEMORY` table with namespace/key/value length validation; source plugins use scoped facade through `HostServices.Cache()` with plugin ID binding, tenant isolation, and shared `kvCacheSvc` backend
-**Lock service**: `acquire/renew/release` reusing host distributed lock with ticket-based isolation
-**Notify service**: `send` through authorized notification channels with unified notification domain tables
-**Config service**: `get/exists/string/bool/int/duration` for reading host GoFrame static configuration, with arbitrary key access and no key-pattern restrictions
+验证策略按 host-only 与 plugin-full 区分。根`E2E`只验证宿主插件框架和通用动态插件 fixture；官方源码插件业务能力由各插件自己的`hack/tests/e2e/`闭环。完整发布链路按共享测试模板执行简要测试门禁，nightly 覆盖完整`E2E`。
 
-## 3. Plugin UI Integration
+## 运行时一致性和故障恢复
 
-### 3.1 Page Mounting Modes
+插件运行时变化必须按插件、sector、locale 或 global scope 精细失效 frontend bundle、runtime i18n、WASM 编译缓存、manifest 资源视图和默认配置视图。集群模式通过统一 coordination revision/event 唤醒其他节点和 reconciler；freshness 不可确认且超过窗口时采用 conservative-hide，不暴露可能已禁用、卸载或权限变化的插件能力。
 
-Three frontend integration modes: `iframe` (host provides menu, permission, context token), `new-tab` (host generates SSO-link jump), `embedded-mount` (plugin provides standard ESM `mount/unmount/update`). Dynamic plugin frontend resources are hosted at `/plugin-assets/<plugin-id>/<version>/...`. Source plugins participate in host frontend build.
+动态插件协调器在集群模式下按插件 ID 串行化共享副作用，生命周期 SQL、迁移账本、菜单权限同步、active release 切换、frontend bundle 切换和 runtime revision 发布只能由持锁节点执行。协调器需要恢复 stale `reconciling`状态，并在 tick 边界隔离 panic，避免单个插件故障停止后台收敛。
 
-### 3.2 Hook and Slot Extension Points
+## Cross-Domain Impacts
 
-Backend hooks: `auth.login.succeeded`, `auth.logout.succeeded`, `system.started`, `plugin.installed/enabled/disabled/uninstalled`. Callback registration extensions: `http.route.register`, `http.request.after-auth`, `cron.register`, `menu.filter`, `permission.filter`. Execution modes: `blocking` and `async`.
-
-Frontend slots: `layout.user-dropdown.after`, `dashboard.workspace.after`, `layout.header.actions.before/after`, `auth.login.after`, `crud.toolbar.after`, `crud.table.after`. All use typed constants in Go and TypeScript.
-
-### 3.3 Generation-Aware Refresh
-
-When a dynamic plugin hot-upgrades, users on that plugin page see a refresh prompt. Clicking refresh rebuilds menus and dynamic routes without forced navigation. Non-plugin-page users remain unaffected.
-
-## 4. Cluster Deployment and Topology
-
-### 4.1 Cluster Mode
-
-`cluster.enabled` defaults to `false` (single-node). `cluster.Service` exposes `IsEnabled()`, `IsPrimary()`, `NodeID()`. Leader election is an internal implementation detail. Single-node mode skips election, treats the current node as primary, and executes all tasks synchronously.
-
-### 4.2 Plugin Convergence
-
-Single-node mode: plugin operations complete synchronously. Cluster mode: primary node executes shared migrations and release switches; followers converge via `sys_plugin_node_state`. Node identity generation is unified in `cluster.Service`.
-
-## 5. Installation and Bootstrap
-
-### 5.1 Startup Auto-Enable
-
-`plugin.autoEnable` in the host main config file lists plugin IDs for startup auto-enable. Semantics: "install first if needed, then enable." Bootstrap runs before plugin route registration, cron wiring, and bundle warmup. Fail-fast on missing or failed plugins.
-
-Source plugins: synchronous install/enable on primary; followers refresh after convergence. Dynamic plugins: reuse existing authorization snapshots; missing snapshots block startup.
-
-**Startup snapshot synchronization**: The HTTP startup phase creates a startup data snapshot via `WithStartupDataSnapshot` covering plugin governance tables and reuses it across bootstrap, route wiring, and warmup. When a source plugin auto-install writes the installed state to the database through `applySourcePluginStableState`, the helper must also refresh the in-memory startup snapshot so that the subsequent enable check within the same startup orchestration reads the latest `installed`, `status`, `desiredState`, and `currentState` projections. Without this synchronization, the enable phase reads stale `installed=0` from the snapshot and fails with `Plugin is not installed`.
-
-### 5.2 Install-and-Enable Shortcut
-
-The installation dialog offers "Install Only" and "Install and Enable." The frontend calls install then enable sequentially, reusing existing APIs. Requires both `plugin:install` and `plugin:enable` permissions. Partial success (install succeeds, enable fails) shows real `installed but disabled` state.
-
-### 5.3 Mock Data Installation
-
-`installMockData` option in install request. Mock SQL from `manifest/sql/mock-data/` executes in one transaction after install SQL succeeds. Any mock failure rolls back mock data and ledger rows while preserving installed state. Ledger rows use `direction='mock'`. Startup bootstrap supports `withMockData` in structured `plugin.autoEnable` entries.
-
-## 6. Authorization and Route Visibility
-
-Dynamic-plugin authorization review dialogs show route exposure alongside host-service authorization. Backend projects method, real public path, access level, permission key, and summary from the release snapshot. First two routes shown by default with expand action. Route section is read-only review, not authorization items.
-
-## 7. Query Performance and Configuration
-
-### 7.1 Plugin List Read Path
-
-Plugin list queries are read-only; synchronization is explicit via `POST /plugins/sync`. Host-service table comment lookup uses safe metadata APIs with fallback to raw names. Session `last_active_time` writes are throttled over a short window.
-
-### 7.2 Duration Configuration
-
-`jwt.expire`, `session.timeout`, `session.cleanupInterval`, `monitor.interval` use duration strings parsed to `time.Duration`. No legacy integer key compatibility.
-
-### 7.3 Notification Domain
-
-`sys_user_message` is replaced by `sys_notify_channel`, `sys_notify_message`, and `sys_notify_delivery`. `sys_notice` retains content management. `/user/message` facade continues to work via the new tables.
-
-### 7.4 Declarative Permission Middleware
-
-Static APIs declare `permission` in `g.Meta`. Middleware executes permission check. Access context is cached per login token with topology-revision-based invalidation. Cluster mode shares revision via `kvcache`.
-
-## 8. Plugin Configuration Service
-
-### 8.1 Problem
-
-`apps/lina-core/pkg/pluginservice/config` had started exposing plugin-specific strongly typed configuration through `GetMonitor()`. Each new plugin or plugin configuration shape would require another change to a host public component. The configuration service itself should remain business-neutral and provide only stable, general, read-only access.
-
-### 8.2 Generic Key Access Instead of Business Methods
-
-`pluginservice/config.Service` exposes generic methods: `Get(ctx, key)` for raw GoFrame configuration values, `Exists(ctx, key)` for key existence checks, `Scan(ctx, key, target)` for scanning a section into a caller-provided struct, and `String/Bool/Int/Duration(ctx, key, defaultValue)` for basic type reads with default-value support. Each plugin maintains its own `Config` structure and `Load(ctx)` method. For example, `monitor-server` scans the `monitor` section inside the plugin, reads `monitor.interval` as a `time.Duration`, and applies whole-second alignment validation.
-
-The `MonitorConfig` type alias and `GetMonitor()` plugin-specific business method are removed from the public component.
-
-### 8.3 Arbitrary Key Reads with Read-Only Boundary
-
-Source plugins are trusted extensions built in the same process and repository as the host. The configuration service does not add prefix restrictions to keys, so a plugin can read the full configuration file. The service is strictly read-only: no write, save, hot reload, or runtime mutation methods are exposed.
-
-### 8.4 Duration Parsing and Business Validation Separation
-
-The public service parses configuration strings into `time.Duration` and keeps default-value semantics stable. Business constraints such as "must be greater than 0", "must be at least 1 second", and "must align to whole seconds" are validated by the plugin in its own configuration loading method.
-
-### 8.5 Error Returns
-
-Generic read methods return `error` and do not directly `panic`. Plugin startup or cron registration paths can choose fail-fast behavior, while normal business paths can wrap errors as caller-visible business errors.
-
-### 8.6 Config Host Service for Dynamic Plugins
-
-Dynamic plugins cannot import `pkg/pluginservice/config` directly, so the `config` host service is provided through `lina_env.host_call`. A dynamic plugin declares `service: config` in `plugin.yaml` `hostServices`. `methods` may be omitted; omission grants the complete read-only method set: `get`, `exists`, `string`, `bool`, `int`, and `duration`. The request payload carries the key. `get` returns the configuration value as JSON; an empty key or `.` returns the complete static configuration snapshot. `exists` returns a found flag. `string`, `bool`, `int`, and `duration` return string representations of their respective types. The wasip1 guest SDK helpers call the corresponding host service methods directly.
-
-### 8.7 Trust Boundary
-
-Source plugins can read the full host configuration. Dynamic or third-party plugins must use host service authorization and auditing before reusing this capability. The service does not perform runtime cache invalidation; it reads only static configuration files.
-
-## 9. Plugin ID Normalization
-
-### 9.1 Runtime Safety Boundary
-
-Plugin ID runtime validation enforces only basic safety: non-empty, 64-character maximum, and lowercase kebab-case (letters, digits, hyphens). The host does not enforce `<author>-<domain>-<capability>` structure, domain whitelists, or official capability reservations at runtime.
-
-### 9.2 Official Plugin ID Convention
-
-Official plugins use the `<author>-<domain>-<capability>` naming convention with `linapro` as the author segment. `core` is reserved for official foundational capability implementations (e.g., `linapro-tenant-core`, `linapro-org-core`). This is a repository governance convention, not a runtime enforcement rule.
-
-### 9.3 Breaking Official Plugin ID Mapping
-
-All 10 official plugins are renamed to `linapro-*` prefix:
-
-| Old ID | New ID |
-|--------|--------|
-| `content-notice` | `linapro-content-notice` |
-| `monitor-loginlog` | `linapro-monitor-loginlog` |
-| `monitor-operlog` | `linapro-monitor-operlog` |
-| `monitor-online` | `linapro-monitor-online` |
-| `monitor-server` | `linapro-monitor-server` |
-| `multi-tenant` | `linapro-tenant-core` |
-| `org-center` | `linapro-org-core` |
-| `plugin-demo-dynamic` | `linapro-demo-dynamic` |
-| `plugin-demo-source` | `linapro-demo-source` |
-| `demo-control` | `linapro-ops-demo-guard` |
-
-No backward compatibility aliases are provided. Plugin-owned storage tables are renamed to match the new snake_case plugin ID scope.
-
-### 9.4 Governance Validation
-
-Automated governance scans verify that official plugin directory names, manifest IDs, source registration IDs, menu keys, i18n namespaces, apidoc namespaces, dynamic artifact filenames, configuration entries, and test fixtures all use the current plugin ID. Old official IDs must not appear in runtime code, configuration, tests, or active OpenSpec documents.
-
-## 10. Plugin Dependency Management
-
-### 10.1 Manifest Dependencies Declaration
-
-`plugin.yaml` supports a `dependencies` object with `framework.version` (LinaPro framework version constraint) and `plugins[]` (plugin dependency list). Each plugin dependency specifies `id`, `version` (semver range), `required` (default `true`), and `install` (`auto` or `manual`, default `manual`). Undeclared `dependencies` keeps the plugin valid as dependency-free.
-
-### 10.2 Dependency Resolution
-
-An internal dependency resolver component takes the target plugin ID, discovered manifest collection, registry/release state, and framework version, and produces: dependency check conclusions, auto-install plan, blocker list, dependency chain, topological order, and reverse dependencies. The resolver performs graph construction, deterministic topological sorting (stable by plugin ID within each layer), self-dependency detection, and cycle detection.
-
-### 10.3 Auto-Installation
-
-When a hard dependency declares `install: auto` and the dependency plugin is discovered with a satisfied version but not yet installed, the system automatically installs it before the target plugin. Auto-installation proceeds in topological order, reusing existing source/dynamic install lifecycle for each dependency. Mid-failure stops subsequent installations and returns the installed-so-far list, failed plugin ID, and failure reason. Auto-installed dependencies are not automatically enabled.
-
-### 10.4 Reverse Dependency Protection
-
-Before uninstalling a plugin, the system scans installed plugins' hard dependency declarations. If downstream plugins depend on the target, uninstall is blocked with the downstream plugin list. Uninstall protection reads from installed release snapshots when current workspace manifests are unavailable.
-
-### 10.5 Upgrade Dependency Validation
-
-Source plugin upgrade and dynamic plugin install/upgrade paths validate new version dependency constraints before switching the effective release. New framework version constraints, hard dependency existence, and hard dependency version ranges must be satisfied. Upgrade does not auto-upgrade dependency plugins; it blocks and returns the dependency list requiring manual upgrade first.
-
-### 10.6 Cache Consistency
-
-Read-only dependency checks do not trigger cache invalidation. Multi-plugin state changes from dependency auto-installation reuse existing plugin runtime revision/event, enabled snapshot, frontend bundle, and runtime i18n bundle per-plugin-scope invalidation mechanisms. Cluster mode uses shared revision and event broadcasting.
-
-## 11. Plugin Runtime Upgrade
-
-### 11.1 Runtime State Model
-
-Plugin state is decomposed into three dimensions: `installed` (whether installed), `enabled` (whether enabled), and `runtimeState` (file vs. database version consistency):
-
-- `normal`: Database effective version matches discovered version
-- `pending_upgrade`: Database effective version is lower than discovered version
-- `abnormal`: Database effective version is higher than discovered version, or manifest/release cannot be safely matched
-- `upgrade_running`: An upgrade task is currently executing on this node or cluster
-- `upgrade_failed`: The most recent upgrade failed and requires diagnosis or retry
-
-### 11.2 Startup Scanning
-
-The startup phase scans source plugin directories and dynamic plugin artifact/release metadata, comparing database effective version with file discovered version. Pending upgrades are marked but do not block startup. Abnormal states are marked with stable reason codes. Plugin management page and upgrade APIs remain accessible in all non-normal states.
-
-Business entry protection: when a plugin is in `pending_upgrade`, `abnormal`, or `upgrade_failed`, its business routes return `PLUGIN_RUNTIME_UPGRADE_REQUIRED`, its menus are hidden/disabled from navigation, its cron tasks are not scheduled, and its hooks are not dispatched. Plugin management and upgrade APIs remain fully accessible.
-
-### 11.3 Runtime Upgrade API
-
-- `GET /plugins/{id}/upgrade/preview`: Read-only preview returning before/after versions, manifest diff, dependency check, SQL summary, hostServices changes, and risk warnings. Only available for `pending_upgrade` plugins.
-- `POST /plugins/{id}/upgrade`: Executes the upgrade with permission check, confirmation validation, and server-side state re-read. Only `pending_upgrade` plugins can enter the upgrade flow.
-
-### 11.4 Upgrade Orchestration
-
-The upgrade flow follows a fixed sequence:
-1. Acquire lock and set `upgrade_running` state
-2. Re-read effective and target manifest snapshots
-3. Validate dependencies, reverse dependencies, framework version, and hostServices authorization changes
-4. Execute `BeforeUpgrade` pre-callback (may veto)
-5. Execute plugin custom `Upgrade` callback
-6. Execute upgrade SQL and record `phase=upgrade`
-7. Synchronize governance resources (menus, permissions, resource refs, i18n, apidoc, routes, cron)
-8. Switch `sys_plugin.version`, `release_id`, and release state
-9. Precisely invalidate plugin-scoped caches and broadcast cluster events
-10. Execute `AfterUpgrade` event callback
-11. Set `normal` state
-
-Failure at any step sets `upgrade_failed` with failure phase, error code, error message key, from/to manifest snapshots, and retry information. No automatic rollback is performed.
-
-### 11.5 Cluster Upgrade Coordination
-
-`cluster.enabled=false`: local lock and local cache invalidation. `cluster.enabled=true`: distributed lock via `coordination.LockStore`, shared revision/event broadcasting, no concurrent upgrades of the same plugin across nodes. Upgrade success/failure invalidates plugin-scoped caches (frontend bundle, WASM module, runtime i18n) locally and broadcasts via shared plugin-runtime revision.
-
-## 12. Official Plugins Submodule Decoupling
-
-### 12.1 Host-Only Mode
-
-The host can build, test, and run without `apps/lina-plugins` existing. Go workspace, compile-time imports, runtime scanning, frontend scanning, test discovery, and tool entry points are all tolerant of missing or empty plugin workspace. Source plugin discovery returns an empty set; dynamic plugin discovery continues normally.
-
-### 12.2 Plugin-Full Mode
-
-When `apps/lina-plugins` is initialized as a submodule (or contains plugin code), all official plugin Go unit tests, plugin-owned E2E tests, and dynamic plugin wasm builds execute normally. The build system distinguishes host-only (`plugins=0`) from plugin-full (`plugins=1`) modes, with explicit CI matrix separation.
-
-### 12.3 Menu Parent Mount Decoupling
-
-The host menu service no longer hardcodes official plugin IDs to fixed parent directories. Plugin manifests autonomously declare their `parent_key` for menu mounting. Menu sync validates that the referenced parent menu record exists but does not restrict mounting to stable host directories only.
-
-## 13. Plugin Workspace Management
-
-### 13.1 De-submodulization
-
-`make plugins.init` / `linactl plugins.init` converts `apps/lina-plugins` from a Git submodule to a regular directory, preserving all plugin code. The command removes gitlink tracking, `.gitmodules` section, `.git/config` submodule config, and `.git/modules/apps/lina-plugins` metadata. If `.gitmodules` contains other submodules, only the `apps/lina-plugins` section is removed.
-
-### 13.2 Configuration-Based Source Declaration
-
-`hack/config.yaml` declares plugin sources under `plugins.sources`:
-
-```yaml
-plugins:
-  sources:
-    official:
-      repo: "https://github.com/linaproai/official-plugins.git"
-      root: "."
-      ref: "main"
-      items:
-        - multi-tenant
-        - org-center
-```
-
-Each source specifies `repo`, `root` (relative path within repo, `.` for root), `ref` (shared branch/tag/commit), and `items` (string array of plugin IDs). Wildcard `"*"` expands to all plugin directories containing `plugin.yaml` under the source root. Wildcard and explicit IDs cannot be mixed in the same source. Plugin IDs must be globally unique across all sources.
-
-### 13.3 Install, Update, and Status Commands
-
-- `plugins.install`: Temporary checkout of source repo to `temp/`, copy `<root>/<plugin-id>` to `apps/lina-plugins/<plugin-id>`. Blocks if target directory exists (use `update` or `force=1`).
-- `plugins.update`: Re-fetches from source and overwrites local directory. Blocks on local dirty state unless `force=1`.
-- `plugins.status`: Read-only diagnosis of workspace type, configured plugins, local existence, version, dirty state, lock state, and remote update status.
-- Lock file at `apps/lina-plugins/.linapro-plugins.lock.yaml` records source, repo, root, ref, resolved commit, manifest version, and content digest per plugin.
-
-## 14. Plugin Package and Capability Boundaries
-
-Plugin public contracts are organized under `pkg/plugin` with three stable responsibilities:
-
-- `pluginhost`: source-plugin contribution entry for routes, hooks, cron, lifecycle and provider factory declarations.
-- `pluginbridge`: dynamic-plugin ABI and transport boundary, including envelope, codec, host call, artifact sections and dynamic route dispatch.
-- `capability`: source-plugin and dynamic-plugin consumption of host capabilities through DTO-oriented, batch-friendly, read-only or explicitly governed contracts.
-
-Legacy top-level packages such as `pluginservice`, `plugindb` and `sourceupgrade` are removed from the public contract surface. Source-plugin upgrade comparison and execution remain host-internal runtime governance; dynamic-plugin data SDKs live under the capability namespace and expose only guest-side DSLs and public request plans. Host-side executors, DB wrappers, audit context, provider availability, resource scanning and plugin runtime state stay in `internal` packages.
-
-Framework capabilities such as organization and tenant are registered through narrow provider factories. Provider adapters live inside the providing plugin's internal backend implementation, while consuming plugins receive stable service projections through the capability directory. Provider availability is determined from the plugin enabled snapshot and runtime revision, not from global mutable registration during route wiring.
-
-## 15. Workspace Route Boundary
-
-The default management workspace is an embedded application entry rather than the whole frontend boundary. Its default entry path is `/admin`, and the host SPA fallback only serves that entry and its descendants. Root path and other non-reserved paths remain available for source plugins to register public pages, static resources or their own fallback handlers through normal GoFrame routing.
-
-Plugin APIs use `/x/{plugin-id}/api/v1/...` for both source and dynamic plugins. Public plugin assets use `/x-assets/{plugin-id}/{version}/...` and are version-bound; resource changes require a plugin version or content-version change. The host reserves the management entry path, host control-plane API paths, `/x` and `/x-assets`. Route conflicts are exposed by GoFrame route registration instead of being hidden by the management workspace fallback.
-
-## 16. Plugin Configuration and Manifest Resources
-
-Plugin configuration reads are plugin-scoped by default. `HostServices.Config()` reads the current plugin's runtime config from plugin-owned `manifest/config/config.yaml` or deployment-scoped equivalent. `HostServices.HostConfig()` only reads host keys explicitly published as public configuration. `HostServices.Manifest()` reads declared resources under the current plugin's `manifest/` directory and rejects absolute paths, path traversal, URLs and cross-plugin access.
-
-Dynamic plugins use the same resource model through embedded artifact resources. Config, host config and manifest resource host services declare a simple read method in `plugin.yaml`; typed helpers such as string, bool, int, duration or scan remain SDK conveniences over the same authorization boundary.
-
-## 17. Runtime Safety and Management Read Model
-
-All dynamic WASM execution entries share host-side resource controls: route execution, cron discovery, cron execution and lifecycle callbacks use the caller deadline when present and otherwise apply a host default timeout; memory usage is bounded by the runtime configuration. Plugin install, upgrade, uninstall and rollback lifecycle SQL is committed in the same transaction as migration ledger writes so PostgreSQL remains the authority for lifecycle success.
-
-Rollback diagnostics are preserved in the error chain or plugin failure state. Cluster mode protects per-plugin lifecycle side effects with the host distributed lock or coordination lock. The reconciler detects stale `reconciling` states and recovers them through a later tick, and each tick recovers from panic so one plugin failure cannot permanently stop background convergence.
-
-The plugin management list is a governed read model. Request-local manifest and dependency snapshots are reused during list construction, and an async warmup builds the full list model after host startup. Explicit invalidation is triggered by sync, upload, install, uninstall, enable, disable, source upgrade, dynamic upgrade and tenant provisioning policy changes, and cluster mode reuses the existing plugin runtime revision/event path.
+- `cluster-deployment-mode`、`cluster-topology-boundaries`、`leader-election`和`distributed-locker`为插件运行时提供主节点、副本、revision/event 和 per-plugin 锁边界；当前契约由`openspec/specs`对应能力承载，历史 owner 为`archive/distributed-infra`。
+- `cron-jobs`影响插件 cron 声明、主节点任务分类和动态任务接线；当前契约由`openspec/specs/cron-jobs/spec.md`与调度相关规范承载，历史 owner 为`archive/scheduled-jobs`。
+- `menu-management`、`role-management`和`plugin-permission-governance`共同定义插件菜单、按钮权限和角色授权关系；插件侧历史保留`plugin-permission-governance`，菜单与角色通用契约由`archive/user-management`及主规范承载。
+- `user-auth`只作为插件登录/登出 hook、鉴权上下文和失败隔离的交叉影响；当前认证契约由`openspec/specs/user-auth/spec.md`承载，历史 owner 为`archive/user-auth`。
+- `online-user`和`server-monitor`只保留时长配置、会话触碰节流、监控采集和清理任务与插件运行时的交叉影响；当前契约由系统监控或用户会话相关主规范承载。
+- `project-setup`、`release-image-build`和`e2e-suite-organization`只保留 host-only/plugin-full、工作台入口、插件 API 路径、发布和测试范围的交叉影响；长期 owner 分别为`archive/foundation`、`archive/devops-tooling`和`archive/e2e-testing`。
+- `core-host-boundary-governance`、`module-decoupling`和`service-dependency-injection-governance`提供宿主边界、可选插件降级和显式依赖注入约束；当前契约由主规范和对应治理分组承载，插件分组只保留对插件公共包、host services 和 provider 边界的影响。
+- `source-upgrade-governance`和`system-api-docs`分别影响源码插件升级内部化和动态插件 OpenAPI 投影；当前契约由主规范承载，插件分组通过运行时升级和动态路由设计保留必要历史原因。
+- `config-duration-unification`和`demo-control-guard`分别影响插件配置读取、启动引导和演示只读插件安装方式；当前契约由系统配置和官方插件治理相关主规范承载。
