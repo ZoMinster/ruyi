@@ -3,7 +3,7 @@
 
 [![LinaPro CI](https://github.com/linaproai/linapro/actions/workflows/main-ci.yml/badge.svg?v=0.3.0)](https://github.com/linaproai/linapro/actions/workflows/main-ci.yml)
 [![LinaPro Stable Release](https://img.shields.io/github/v/release/linaproai/linapro?style=flat&v=0.3.0)](https://github.com/linaproai/linapro/releases)
-[![LinaPro License](https://img.shields.io/github/license/linaproai/linapro.svg?style=flat&v=0.3.0)](https://github.com/linaproai/linapro)
+[![LinaPro License](https://img.shields.io/badge/license-apache%202.0-green.svg?style=flat&v=0.3.0)](https://github.com/linaproai/linapro)
 [![LinaPro Is Production Ready](https://img.shields.io/badge/production-ready-blue.svg?style=flat&v=0.3.0)](https://github.com/linaproai/linapro)
 
 [![Vue](https://img.shields.io/badge/Vue-3.x-42b883.svg?v=0.3.0)](https://vuejs.org/)
