@@ -142,23 +142,23 @@ git diff --name-status <from>..<to>
 必须使用以下模板：
 
 ```markdown
-# Highlights
+## Highlights
 
-# Improvements
+## Improvements
 
-# Bug Fixes
+## Bug Fixes
 
-# Tooling and Experience
+## Tooling and Experience
 
 ---
 
-# 主要亮点
+## 主要亮点
 
-# 功能改进
+## 功能改进
 
-# Bug 修复
+## Bug 修复
 
-# 开发体验与工具链
+## 开发体验与工具链
 
 ```
 

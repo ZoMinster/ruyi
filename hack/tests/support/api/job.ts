@@ -154,8 +154,21 @@ export async function createAdminApiContext(): Promise<APIRequestContext> {
 
 export async function expectSuccess<T>(response: APIResponse): Promise<T> {
   expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as ApiEnvelope<T>;
-  expect(payload.code).toBe(0);
+  const payload = (await response.json()) as ApiEnvelope<T> & {
+    errorCode?: string;
+    messageKey?: string;
+    messageParams?: Record<string, unknown>;
+  };
+  expect(
+    payload.code,
+    [
+      `expected API success for ${response.url()}`,
+      `errorCode=${payload.errorCode ?? ""}`,
+      `message=${payload.message ?? ""}`,
+      `messageKey=${payload.messageKey ?? ""}`,
+      `messageParams=${JSON.stringify(payload.messageParams ?? {})}`,
+    ].join(" "),
+  ).toBe(0);
   return payload.data;
 }
 
