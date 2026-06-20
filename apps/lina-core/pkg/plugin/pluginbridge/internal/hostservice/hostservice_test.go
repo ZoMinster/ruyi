@@ -188,11 +188,11 @@ func TestValidateHostServiceSpecsAcceptsOrgTenantWithoutResources(t *testing.T) 
 // ordinary domain host services are authorized by service and method only.
 func TestValidateHostServiceSpecsAcceptsDomainServicesWithoutResources(t *testing.T) {
 	specs := []*HostServiceSpec{
-		{Service: HostServiceAuthz, Methods: []string{HostServiceMethodAuthzBatchGetPermissions}},
-		{Service: HostServiceDict, Methods: []string{HostServiceMethodDictResolveLabels}},
-		{Service: HostServiceFiles, Methods: []string{HostServiceMethodFilesBatchGet}},
-		{Service: HostServiceSessions, Methods: []string{HostServiceMethodSessionsSearch}},
-		{Service: HostServiceJobs, Methods: []string{HostServiceMethodJobsBatchGet, HostServiceMethodJobsRegister}},
+		{Service: HostServiceAuthz, Methods: []string{HostServiceMethodAuthzBatchGetPermissions, HostServiceMethodAuthzBatchHasPermissions}},
+		{Service: HostServiceDict, Methods: []string{HostServiceMethodDictResolveLabels, HostServiceMethodDictListValues, HostServiceMethodDictEnsureValuesVisible}},
+		{Service: HostServiceFiles, Methods: []string{HostServiceMethodFilesBatchGet, HostServiceMethodFilesSearch}},
+		{Service: HostServiceSessions, Methods: []string{HostServiceMethodSessionsCurrent, HostServiceMethodSessionsSearch, HostServiceMethodSessionsBatchGetUserOnlineStatus, HostServiceMethodSessionsEnsureVisible}},
+		{Service: HostServiceJobs, Methods: []string{HostServiceMethodJobsBatchGet, HostServiceMethodJobsSearch, HostServiceMethodJobsEnsureVisible, HostServiceMethodJobsRegister}},
 		{Service: HostServiceInfra, Methods: []string{HostServiceMethodInfraBatchGetStatus}},
 		{Service: HostServiceAPIDoc, Methods: []string{HostServiceMethodAPIDocFindRouteTitleOperationKeys}},
 		{Service: HostServiceBizCtx, Methods: []string{HostServiceMethodBizCtxCurrent}},
@@ -458,16 +458,16 @@ func TestValidateHostServiceSpecsRejectsCoreServiceWithoutResource(t *testing.T)
 	}
 }
 
-// TestValidateHostServiceSpecsAcceptsDataTables verifies data service
-// declarations normalize and accept authorized table lists.
-func TestValidateHostServiceSpecsAcceptsDataTables(t *testing.T) {
+// TestValidateHostServiceSpecsRejectsDataTablesWithoutPlugin verifies data
+// service declarations require plugin-aware table ownership validation.
+func TestValidateHostServiceSpecsRejectsDataTablesWithoutPlugin(t *testing.T) {
 	err := ValidateHostServiceSpecs([]*HostServiceSpec{{
 		Service: HostServiceData,
 		Methods: []string{HostServiceMethodDataList, HostServiceMethodDataUpdate},
 		Tables:  []string{" sys_plugin_node_state ", "sys_user"},
 	}})
-	if err != nil {
-		t.Fatalf("expected data host service tables to validate, got %v", err)
+	if err == nil {
+		t.Fatal("expected data host service tables without plugin ID to be rejected")
 	}
 }
 

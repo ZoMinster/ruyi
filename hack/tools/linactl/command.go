@@ -102,7 +102,7 @@ func commandRegistry() map[string]commandSpec {
 		{Name: "plugins.install", Description: "Install configured source plugins into apps/lina-plugins.", Usage: "linactl plugins.install [p=<plugin-id>] [source=<name>] [force=1]", Run: runPluginsInstall},
 		{Name: "plugins.update", Description: "Update configured source plugins in apps/lina-plugins.", Usage: "linactl plugins.update [p=<plugin-id>] [source=<name>] [force=1]", Run: runPluginsUpdate},
 		{Name: "plugins.status", Description: "Show configured source-plugin workspace status.", Usage: "linactl plugins.status [p=<plugin-id>] [source=<name>]", Run: runPluginsStatus},
-		{Name: "build", Description: "Build frontend assets, plugin artifacts, and host binaries.", Usage: "linactl build [plugins=auto|0|1] [platforms=linux/amd64] [verbose=1]", Run: runBuild},
+		{Name: "build", Description: "Build frontend assets, plugin artifacts, and host binaries.", Usage: "linactl build [dir=apps/lina-plugins/<plugin-id>] [plugins=auto|0|1] [platforms=linux/amd64] [verbose=1]", Run: runBuild},
 		{Name: "image", Description: "Build the production Docker image.", Usage: "linactl image [tag=v0.6.0] [push=1]", Run: runImage},
 		{Name: "image.build", Description: "Stage image build artifacts without invoking Docker build.", Usage: "linactl image.build [tag=v0.6.0]", Run: runImageBuild},
 		{Name: "version", Description: "Update framework.version metadata and README image cache keys.", Usage: "linactl version to=v0.6.0", Run: runVersion},
@@ -127,9 +127,9 @@ func commandRegistry() map[string]commandSpec {
 		{Name: "agents.prompts.unlink", Description: "Remove repository-local prompts symlinks managed by agents.prompts.link.", Usage: "linactl agents.prompts.unlink agent=<name|all|csv>", Run: runAgentsPromptsUnlink},
 		{Name: "agents.md.link", Description: "Manage repository-local symlinks from supported agents' private guide files to AGENTS.md.", Usage: "linactl agents.md.link [agent=<name|all|csv>] [force=1]", Run: runAgentsMdLink},
 		{Name: "agents.md.unlink", Description: "Remove repository-local AGENTS.md symlinks managed by agents.md.link.", Usage: "linactl agents.md.unlink agent=<name|all|csv>", Run: runAgentsMdUnlink},
-		{Name: "ctrl", Description: "Generate GoFrame controllers.", Usage: "linactl ctrl", Internal: true, Run: runCtrl},
-		{Name: "dao", Description: "Generate GoFrame DAO/DO/Entity files.", Usage: "linactl dao", Internal: true, Run: runDao},
-		{Name: "__goframe", Description: "Run embedded GoFrame code generation.", Usage: "linactl __goframe gen <ctrl|dao>", Hidden: true, Run: runEmbeddedGoFrame},
+		{Name: "ctrl", Description: "Generate GoFrame controllers.", Usage: "linactl ctrl [dir=<backend-dir>]", Internal: true, Run: runCtrl},
+		{Name: "dao", Description: "Generate GoFrame DAO/DO/Entity files.", Usage: "linactl dao [dir=<backend-dir>]", Internal: true, Run: runDao},
+		{Name: "__goframe", Description: "Run embedded GoFrame code generation.", Usage: "linactl __goframe --config-dir=<path> gen <ctrl|dao>", Hidden: true, Run: runEmbeddedGoFrame},
 	}
 
 	registry := make(map[string]commandSpec, len(specs))

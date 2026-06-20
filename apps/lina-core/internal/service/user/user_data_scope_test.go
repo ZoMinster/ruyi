@@ -166,8 +166,8 @@ func TestUserDataScopeRejectsInvisibleStatusUpdate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected invisible status update to be rejected")
 	}
-	if !bizerr.Is(err, CodeUserDataScopeDenied) {
-		t.Fatalf("expected CodeUserDataScopeDenied, got %v", err)
+	if !bizerr.Is(err, datascope.CodeDataScopeDenied) {
+		t.Fatalf("expected CodeDataScopeDenied, got %v", err)
 	}
 	if status := mustQueryUserStatus(t, ctx, targetUserID); status != int(StatusNormal) {
 		t.Fatalf("expected target user status to remain normal, got %d", status)
@@ -200,8 +200,8 @@ func TestUserDataScopeBatchDeleteRejectsInvisibleTarget(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected invisible batch delete target to be rejected")
 	}
-	if !bizerr.Is(err, CodeUserDataScopeDenied) {
-		t.Fatalf("expected CodeUserDataScopeDenied, got %v", err)
+	if !bizerr.Is(err, datascope.CodeDataScopeDenied) {
+		t.Fatalf("expected CodeDataScopeDenied, got %v", err)
 	}
 	if count := mustCountUser(t, ctx, deptMateUserID); count != 1 {
 		t.Fatalf("expected visible target to remain after rejected batch, count=%d", count)
@@ -455,6 +455,14 @@ func (f userDataScopeStaticOrgCap) ListUserDeptAssignments(context.Context, []in
 	return map[int]*orgcap.UserDeptAssignment{}, nil
 }
 
+// BatchGetUserOrgProfiles returns deterministic empty organization profiles.
+func (f userDataScopeStaticOrgCap) BatchGetUserOrgProfiles(_ context.Context, userIDs []int) (*capmodel.BatchResult[*orgcap.UserOrgProfile, int], error) {
+	return &capmodel.BatchResult[*orgcap.UserOrgProfile, int]{
+		Items:      map[int]*orgcap.UserOrgProfile{},
+		MissingIDs: append([]int(nil), userIDs...),
+	}, nil
+}
+
 // GetUserDeptInfo returns an empty department projection.
 func (f userDataScopeStaticOrgCap) GetUserDeptInfo(context.Context, int) (int, string, error) {
 	return 0, "", nil
@@ -518,6 +526,31 @@ func (f userDataScopeStaticOrgCap) ApplyUserDeptUnassignedFilter(_ context.Conte
 // GetUserPostIDs returns no post IDs.
 func (f userDataScopeStaticOrgCap) GetUserPostIDs(context.Context, int) ([]int, error) {
 	return []int{}, nil
+}
+
+// ListDeptTree returns no department tree nodes.
+func (f userDataScopeStaticOrgCap) ListDeptTree(context.Context, orgcap.DeptTreeInput) (*orgcap.DeptTreeResult, error) {
+	return &orgcap.DeptTreeResult{Items: []*orgcap.DeptTreeNode{}}, nil
+}
+
+// SearchDepartments returns no department candidates.
+func (f userDataScopeStaticOrgCap) SearchDepartments(context.Context, orgcap.DeptSearchInput) (*capmodel.PageResult[*orgcap.DeptProjection], error) {
+	return &capmodel.PageResult[*orgcap.DeptProjection]{Items: []*orgcap.DeptProjection{}}, nil
+}
+
+// ListPostOptionsPage returns no post candidates.
+func (f userDataScopeStaticOrgCap) ListPostOptionsPage(context.Context, orgcap.PostOptionsInput) (*capmodel.PageResult[*orgcap.PostOption], error) {
+	return &capmodel.PageResult[*orgcap.PostOption]{Items: []*orgcap.PostOption{}}, nil
+}
+
+// EnsureDepartmentsVisible accepts visibility checks in data-scope tests.
+func (f userDataScopeStaticOrgCap) EnsureDepartmentsVisible(context.Context, []int) error {
+	return nil
+}
+
+// EnsurePostsVisible accepts visibility checks in data-scope tests.
+func (f userDataScopeStaticOrgCap) EnsurePostsVisible(context.Context, []int) error {
+	return nil
 }
 
 // ReplaceUserAssignments accepts assignment replacement without doing work.

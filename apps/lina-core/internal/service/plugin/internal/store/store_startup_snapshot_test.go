@@ -174,83 +174,55 @@ func TestStartupDataSnapshotReusesReleaseByIDAndVersion(t *testing.T) {
 	}
 }
 
-// TestSyncManifestMigratesLegacyHostRuntimeSnapshot verifies startup manifest
-// synchronization can repair the old persisted hostruntime name while keeping
-// strict validation for fresh manifests and WASM artifacts.
-func TestSyncManifestMigratesLegacyHostRuntimeSnapshot(t *testing.T) {
-	var (
-		ctx      = context.Background()
-		svcs     = testutil.NewServices()
-		pluginID = "acme-demo-legacy-host-config-snapshot"
-		version  = "v0.1.0"
-	)
-
-	testutil.CleanupPluginGovernanceRowsHard(t, ctx, pluginID)
-	t.Cleanup(func() {
-		testutil.CleanupPluginGovernanceRowsHard(t, ctx, pluginID)
-	})
-
-	manifest := &catalog.Manifest{
-		ID:                 pluginID,
-		Name:               "Legacy HostRuntime Snapshot",
-		Version:            version,
-		Type:               plugintypes.TypeDynamic.String(),
-		ScopeNature:        plugintypes.ScopeNatureTenantAware.String(),
-		DefaultInstallMode: plugintypes.InstallModeTenantScoped.String(),
-		HostServices: []*protocol.HostServiceSpec{{
-			Service: protocol.HostServiceHostConfig,
-			Methods: []string{protocol.HostServiceMethodHostConfigGet},
-			Keys:    []string{"workspace.basePath"},
-		}},
+// TestParseManifestSnapshotRejectsUnsupportedHostServiceSnapshots verifies
+// persisted snapshots use the same strict host-service names as fresh manifests.
+func TestParseManifestSnapshotRejectsUnsupportedHostServiceSnapshots(t *testing.T) {
+	svcs := testutil.NewServices()
+	testCases := []struct {
+		name     string
+		snapshot string
+	}{
+		{
+			name: "hostruntime",
+			snapshot: `
+id: acme-demo-reject-hostruntime-snapshot
+requestedHostServices:
+  - service: hostruntime
+    methods:
+      - get
+    keys:
+      - workspace.basePath
+`,
+		},
+		{
+			name: "standalone config",
+			snapshot: `
+id: acme-demo-reject-config-snapshot
+requestedHostServices:
+  - service: config
+    methods:
+      - get
+`,
+		},
+		{
+			name: "standalone cron",
+			snapshot: `
+id: acme-demo-reject-cron-snapshot
+requestedHostServices:
+  - service: cron
+    methods:
+      - cron.register
+`,
+		},
 	}
 
-	if _, err := svcs.Store.SyncManifest(ctx, manifest); err != nil {
-		t.Fatalf("expected initial manifest sync to succeed, got error: %v", err)
-	}
-	release, err := svcs.Store.GetRelease(ctx, pluginID, version)
-	if err != nil {
-		t.Fatalf("expected release lookup to succeed, got error: %v", err)
-	}
-	if release == nil {
-		t.Fatal("expected release row after initial sync")
-	}
-
-	legacySnapshot := strings.ReplaceAll(release.ManifestSnapshot, protocol.HostServiceHostConfig, "hostruntime")
-	if !strings.Contains(legacySnapshot, "hostruntime") {
-		t.Fatalf("expected test fixture to contain legacy hostruntime snapshot, got %s", legacySnapshot)
-	}
-	if _, err = dao.SysPluginRelease.Ctx(ctx).
-		Where(do.SysPluginRelease{Id: release.Id}).
-		Data(do.SysPluginRelease{ManifestSnapshot: legacySnapshot}).
-		Update(); err != nil {
-		t.Fatalf("expected legacy snapshot update to succeed, got error: %v", err)
-	}
-
-	legacyRelease, err := svcs.Store.RefreshStartupReleaseByID(ctx, release.Id)
-	if err != nil {
-		t.Fatalf("expected release refresh to succeed, got error: %v", err)
-	}
-	parsedLegacy, err := svcs.Store.ParseManifestSnapshot(legacyRelease.ManifestSnapshot)
-	if err != nil {
-		t.Fatalf("expected legacy manifest snapshot to parse through migration, got error: %v", err)
-	}
-	if len(parsedLegacy.RequestedHostServices) != 1 ||
-		parsedLegacy.RequestedHostServices[0].Service != protocol.HostServiceHostConfig {
-		t.Fatalf("expected legacy hostruntime snapshot to normalize to hostconfig, got %#v", parsedLegacy.RequestedHostServices)
-	}
-
-	if _, err = svcs.Store.SyncManifest(ctx, manifest); err != nil {
-		t.Fatalf("expected manifest sync to rewrite migrated snapshot, got error: %v", err)
-	}
-	repairedRelease, err := svcs.Store.GetRelease(ctx, pluginID, version)
-	if err != nil {
-		t.Fatalf("expected repaired release lookup to succeed, got error: %v", err)
-	}
-	if strings.Contains(repairedRelease.ManifestSnapshot, "hostruntime") {
-		t.Fatalf("expected sync to rewrite legacy hostruntime snapshot, got %s", repairedRelease.ManifestSnapshot)
-	}
-	if !strings.Contains(repairedRelease.ManifestSnapshot, protocol.HostServiceHostConfig) {
-		t.Fatalf("expected repaired snapshot to contain hostconfig, got %s", repairedRelease.ManifestSnapshot)
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			if _, err := svcs.Store.ParseManifestSnapshot(testCase.snapshot); err == nil {
+				t.Fatalf("expected unsupported host-service snapshot %q to be rejected", testCase.name)
+			}
+		})
 	}
 }
 

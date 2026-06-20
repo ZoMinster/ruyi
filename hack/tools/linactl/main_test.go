@@ -40,7 +40,7 @@ func init() {
 }
 
 func TestParseCommandInputSupportsMakeStyleParams(t *testing.T) {
-	input, err := parseCommandInput([]string{"confirm=init", "rebuild=true", "--platforms=linux/amd64,linux/arm64", "AGENT=ClaudeCode", "-h", "extra"})
+	input, err := parseCommandInput([]string{"confirm=init", "rebuild=true", "--platforms=linux/amd64,linux/arm64", "UPPER=ClaudeCode", "-h", "extra"})
 	if err != nil {
 		t.Fatalf("parseCommandInput returned error: %v", err)
 	}
@@ -58,8 +58,11 @@ func TestParseCommandInputSupportsMakeStyleParams(t *testing.T) {
 	if input.Get("base-image") != "alpine" {
 		t.Fatalf("hyphenated key did not resolve normalized parameter")
 	}
-	if input.Get("agent") != "ClaudeCode" {
-		t.Fatalf("upper-case key did not resolve normalized parameter")
+	if input.Get("upper") != "" {
+		t.Fatalf("upper-case key should not resolve as lower-case parameter")
+	}
+	if input.Get("UPPER") != "ClaudeCode" {
+		t.Fatalf("expected upper-case key to remain case-sensitive")
 	}
 	if !input.HasBool("h") {
 		t.Fatalf("expected -h to be parsed as true")
@@ -290,7 +293,7 @@ func TestRunCtrlDispatchesEmbeddedGoFrame(t *testing.T) {
 		t.Fatalf("runCtrl returned error: %v", err)
 	}
 
-	requireSingleGoFrameDispatch(t, calls, filepath.Join(root, "apps", "lina-core"), filepath.Join(root, "linactl-test"), []string{"__goframe", "gen", "ctrl"})
+	requireSingleGoFrameDispatch(t, calls, filepath.Join(root, "apps", "lina-core"), filepath.Join(root, "linactl-test"), []string{"__goframe", "--config-dir=" + filepath.Join(root, "apps", "lina-core", "hack"), "gen", "ctrl"})
 }
 
 // TestRunDaoDispatchesEmbeddedGoFrame verifies linactl dao starts the hidden
@@ -304,55 +307,92 @@ func TestRunDaoDispatchesEmbeddedGoFrame(t *testing.T) {
 		t.Fatalf("runDao returned error: %v", err)
 	}
 
-	requireSingleGoFrameDispatch(t, calls, filepath.Join(root, "apps", "lina-core"), filepath.Join(root, "linactl-test"), []string{"__goframe", "gen", "dao"})
+	requireSingleGoFrameDispatch(t, calls, filepath.Join(root, "apps", "lina-core"), filepath.Join(root, "linactl-test"), []string{"__goframe", "--config-dir=" + filepath.Join(root, "apps", "lina-core", "hack"), "gen", "dao"})
 }
 
-// TestRunCtrlDispatchesToPluginBackend verifies plugin ID targeting resolves
-// to the plugin backend GoFrame project directory.
+// TestRunCtrlDispatchesToPluginBackend verifies explicit dir targeting resolves
+// to the plugin backend work directory and plugin-root config directory.
 func TestRunCtrlDispatchesToPluginBackend(t *testing.T) {
 	root := t.TempDir()
-	pluginBackend := filepath.Join(root, "apps", "lina-plugins", "demo-plugin", "backend")
-	writeFile(t, filepath.Join(pluginBackend, "hack", "config.yaml"), "gfcli: {}\n")
+	pluginRoot := filepath.Join(root, "apps", "lina-plugins", "demo-plugin")
+	pluginBackend := filepath.Join(pluginRoot, "backend")
+	if err := os.MkdirAll(pluginBackend, 0o755); err != nil {
+		t.Fatalf("mkdir plugin backend: %v", err)
+	}
+	writeFile(t, filepath.Join(pluginRoot, "plugin.yaml"), "id: demo-plugin\n")
+	writeFile(t, filepath.Join(pluginRoot, "hack", "config.yaml"), "gfcli: {}\n")
 	application, calls := newGoFrameDispatchTestApp(t, root, filepath.Join(root, "linactl-test"))
 
-	if err := runCtrl(context.Background(), application, commandInput{Params: map[string]string{"p": "demo-plugin"}}); err != nil {
+	if err := runCtrl(context.Background(), application, commandInput{Params: map[string]string{"dir": "apps/lina-plugins/demo-plugin/backend"}}); err != nil {
 		t.Fatalf("runCtrl returned error: %v", err)
 	}
 
-	requireSingleGoFrameDispatch(t, calls, pluginBackend, filepath.Join(root, "linactl-test"), []string{"__goframe", "gen", "ctrl"})
+	requireSingleGoFrameDispatch(t, calls, pluginBackend, filepath.Join(root, "linactl-test"), []string{"__goframe", "--config-dir=" + filepath.Join(pluginRoot, "hack"), "gen", "ctrl"})
 }
 
 // TestRunDaoDispatchesToExplicitBackendDir verifies Makefile wrappers can pass
 // a relative backend directory directly.
 func TestRunDaoDispatchesToExplicitBackendDir(t *testing.T) {
 	root := t.TempDir()
-	pluginBackend := filepath.Join(root, "apps", "lina-plugins", "demo-plugin", "backend")
-	writeFile(t, filepath.Join(pluginBackend, "hack", "config.yaml"), "gfcli: {}\n")
+	pluginRoot := filepath.Join(root, "apps", "lina-plugins", "demo-plugin")
+	pluginBackend := filepath.Join(pluginRoot, "backend")
+	if err := os.MkdirAll(pluginBackend, 0o755); err != nil {
+		t.Fatalf("mkdir plugin backend: %v", err)
+	}
+	writeFile(t, filepath.Join(pluginRoot, "plugin.yaml"), "id: demo-plugin\n")
+	writeFile(t, filepath.Join(pluginRoot, "hack", "config.yaml"), "gfcli: {}\n")
 	application, calls := newGoFrameDispatchTestApp(t, root, filepath.Join(root, "linactl-test"))
 
 	if err := runDao(context.Background(), application, commandInput{Params: map[string]string{"dir": "apps/lina-plugins/demo-plugin/backend"}}); err != nil {
 		t.Fatalf("runDao returned error: %v", err)
 	}
 
-	requireSingleGoFrameDispatch(t, calls, pluginBackend, filepath.Join(root, "linactl-test"), []string{"__goframe", "gen", "dao"})
+	requireSingleGoFrameDispatch(t, calls, pluginBackend, filepath.Join(root, "linactl-test"), []string{"__goframe", "--config-dir=" + filepath.Join(pluginRoot, "hack"), "gen", "dao"})
 }
 
 // TestRunDaoRejectsTargetWithoutGoFrameConfig keeps failures actionable before
 // the hidden GoFrame subprocess is started.
 func TestRunDaoRejectsTargetWithoutGoFrameConfig(t *testing.T) {
 	root := t.TempDir()
-	pluginBackend := filepath.Join(root, "apps", "lina-plugins", "demo-plugin", "backend")
+	pluginRoot := filepath.Join(root, "apps", "lina-plugins", "demo-plugin")
+	pluginBackend := filepath.Join(pluginRoot, "backend")
 	if err := os.MkdirAll(pluginBackend, 0o755); err != nil {
 		t.Fatalf("mkdir plugin backend: %v", err)
 	}
+	writeFile(t, filepath.Join(pluginRoot, "plugin.yaml"), "id: demo-plugin\n")
 	application, calls := newGoFrameDispatchTestApp(t, root, filepath.Join(root, "linactl-test"))
 
-	err := runDao(context.Background(), application, commandInput{Params: map[string]string{"p": "demo-plugin"}})
-	if err == nil || !strings.Contains(err.Error(), "missing hack/config.yaml") {
+	err := runDao(context.Background(), application, commandInput{Params: map[string]string{"dir": "apps/lina-plugins/demo-plugin/backend"}})
+	if err == nil || !strings.Contains(err.Error(), "missing config.yaml") {
 		t.Fatalf("expected missing config error, got %v", err)
 	}
 	if len(*calls) != 0 {
 		t.Fatalf("hidden GoFrame child should not run for invalid target: %#v", *calls)
+	}
+}
+
+// TestRunGoFrameRejectsLegacyTargetParams verifies code generation target
+// selection has one explicit surface: dir=<path>.
+func TestRunGoFrameRejectsLegacyTargetParams(t *testing.T) {
+	application, calls := newGoFrameDispatchTestApp(t, t.TempDir(), filepath.Join(t.TempDir(), "linactl-test"))
+
+	for _, tc := range []struct {
+		name   string
+		params map[string]string
+	}{
+		{name: "p", params: map[string]string{"p": "demo-plugin"}},
+		{name: "plugin", params: map[string]string{"plugin": "demo-plugin"}},
+		{name: "target", params: map[string]string{"target": "apps/lina-core"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := runDao(context.Background(), application, commandInput{Params: tc.params})
+			if err == nil || !strings.Contains(err.Error(), "is not supported; use dir=<path>") {
+				t.Fatalf("expected legacy parameter error, got %v", err)
+			}
+		})
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("hidden GoFrame child should not run for legacy target params: %#v", *calls)
 	}
 }
 
@@ -366,7 +406,7 @@ func TestRunEmbeddedGoFrameRejectsParameters(t *testing.T) {
 		Args:   []string{"gen", "ctrl"},
 		Params: map[string]string{"path": "api"},
 	})
-	if err == nil || !strings.Contains(err.Error(), "only supports positional commands") {
+	if err == nil || !strings.Contains(err.Error(), "only supports config-dir plus positional commands") {
 		t.Fatalf("expected hidden command parameter error, got %v", err)
 	}
 }
@@ -797,6 +837,176 @@ func TestEnsurePackedPublicPlaceholderCreatesGitkeep(t *testing.T) {
 	}
 }
 
+// TestRunBuildRunsPluginConfigCommandsBeforeBackendCompile verifies
+// plugin-owned build commands run before Go embed compilation.
+func TestRunBuildRunsPluginConfigCommandsBeforeBackendCompile(t *testing.T) {
+	root := t.TempDir()
+	writeBuildFixture(t, root)
+
+	calls := runBuildWithCapturedCommands(t, root, nil, commandInput{Params: map[string]string{"plugins": "1"}})
+
+	pluginBuildIndex := -1
+	backendBuildIndex := -1
+	for index, call := range calls {
+		if call.name == "pnpm" && len(call.args) >= 4 && call.args[0] == "--dir" && call.args[2] == "run" && call.args[3] == "build" && call.cmd.Dir == filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox") {
+			pluginBuildIndex = index
+		}
+		if call.name == "go" && len(call.args) >= 1 && call.args[0] == "build" && call.cmd.Dir == filepath.Join(root, "apps", "lina-core") {
+			backendBuildIndex = index
+		}
+	}
+	if pluginBuildIndex < 0 {
+		t.Fatalf("expected plugin build command call, got %#v", calls)
+	}
+	if backendBuildIndex < 0 {
+		t.Fatalf("expected backend go build call, got %#v", calls)
+	}
+	if pluginBuildIndex > backendBuildIndex {
+		t.Fatalf("plugin build command must run before backend build, calls=%#v", calls)
+	}
+}
+
+func TestRunBuildDirBuildsSelectedPluginOnly(t *testing.T) {
+	root := t.TempDir()
+	writeBuildFixture(t, root)
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "another-plugin", "plugin.yaml"), "id: another-plugin\ntype: source\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "another-plugin", "hack", "config.yaml"), "build:\n  commands:\n    - node build.mjs\n")
+	staleWorkspace := filepath.Join(root, "stale.work")
+
+	calls := runBuildWithCapturedCommands(t, root, []string{
+		"GOWORK=" + staleWorkspace,
+		"GOFLAGS=-mod=mod -tags=netgo",
+	}, commandInput{Params: map[string]string{
+		"dir":     "apps/lina-plugins/john-ai-agentbox",
+		"plugins": "1",
+	}})
+
+	if len(calls) != 1 {
+		t.Fatalf("expected one plugin build call, got %#v", calls)
+	}
+	call := calls[0]
+	if call.name != "pnpm" || len(call.args) < 4 || call.args[0] != "--dir" || call.args[1] != filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox", "frontend") || call.args[2] != "run" || call.args[3] != "build" {
+		t.Fatalf("unexpected selected plugin build command: %#v", call)
+	}
+	if call.cmd.Dir != filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox") {
+		t.Fatalf("selected plugin build dir mismatch: %q", call.cmd.Dir)
+	}
+	if got := toolutil.EnvValue(call.cmd.Env, "GOWORK"); got != filepath.Join(root, "temp", "go.work.plugins") {
+		t.Fatalf("expected selected plugin build to use prepared plugin workspace, got %q", got)
+	}
+	if got := toolutil.EnvValue(call.cmd.Env, plugins.SourcePluginsEnvKey); got != "1" {
+		t.Fatalf("expected selected plugin build to enable source plugin env, got %q", got)
+	}
+	if got := toolutil.EnvValue(call.cmd.Env, "GOFLAGS"); !strings.Contains(got, plugins.OfficialBuildTag) {
+		t.Fatalf("expected selected plugin build to set official plugin build tag, got %q", got)
+	}
+}
+
+func TestRunBuildWithoutDirBuildsAllPlugins(t *testing.T) {
+	root := t.TempDir()
+	writeBuildFixture(t, root)
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "another-plugin", "plugin.yaml"), "id: another-plugin\ntype: source\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "another-plugin", "hack", "config.yaml"), "build:\n  commands:\n    - node build.mjs\n")
+
+	calls := runBuildWithCapturedCommands(t, root, nil, commandInput{Params: map[string]string{"plugins": "1"}})
+
+	built := map[string]bool{}
+	for _, call := range calls {
+		if call.cmd.Dir == filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox") {
+			built["john-ai-agentbox"] = true
+		}
+		if call.cmd.Dir == filepath.Join(root, "apps", "lina-plugins", "another-plugin") {
+			built["another-plugin"] = true
+		}
+	}
+	for _, pluginID := range []string{"john-ai-agentbox", "another-plugin"} {
+		if !built[pluginID] {
+			t.Fatalf("expected root build to run build commands for %s, calls=%#v", pluginID, calls)
+		}
+	}
+}
+
+func TestRunBuildDirBuildsHostFrontendOnly(t *testing.T) {
+	root := t.TempDir()
+	writeBuildFixture(t, root)
+
+	calls := runBuildWithCapturedCommands(t, root, nil, commandInput{Params: map[string]string{
+		"dir": "apps/lina-vben",
+	}})
+
+	if len(calls) != 1 {
+		t.Fatalf("expected one frontend build call, got %#v", calls)
+	}
+	call := calls[0]
+	if call.name != "pnpm" || len(call.args) < 2 || call.args[0] != "run" || call.args[1] != "build" {
+		t.Fatalf("unexpected frontend build command: %#v", call)
+	}
+	if call.cmd.Dir != filepath.Join(root, "apps", "lina-vben") {
+		t.Fatalf("frontend build dir mismatch: %q", call.cmd.Dir)
+	}
+	if !fileutil.FileExists(filepath.Join(root, "apps", "lina-core", "internal", "packed", "public", "index.html")) {
+		t.Fatalf("host frontend build did not refresh packed public assets")
+	}
+}
+
+func TestRunBuildDirBuildsHostBackendWithPreparedAssets(t *testing.T) {
+	root := t.TempDir()
+	writeBuildFixture(t, root)
+
+	calls := runBuildWithCapturedCommands(t, root, nil, commandInput{Params: map[string]string{
+		"dir": "apps/lina-core",
+	}})
+
+	if len(calls) != 2 {
+		t.Fatalf("expected frontend and backend build calls, got %#v", calls)
+	}
+	if calls[0].name != "pnpm" || calls[0].cmd.Dir != filepath.Join(root, "apps", "lina-vben") {
+		t.Fatalf("expected frontend build first, got %#v", calls[0])
+	}
+	if calls[1].name != "go" || len(calls[1].args) < 1 || calls[1].args[0] != "build" || calls[1].cmd.Dir != filepath.Join(root, "apps", "lina-core") {
+		t.Fatalf("expected backend go build second, got %#v", calls[1])
+	}
+	if !fileutil.FileExists(filepath.Join(root, "apps", "lina-core", "internal", "packed", "manifest", "config", "config.template.yaml")) {
+		t.Fatalf("host backend build did not prepare packed manifest assets")
+	}
+}
+
+func TestResolvePluginConfigBuildStepsSkipsPluginsWithoutCommands(t *testing.T) {
+	root := t.TempDir()
+	withBuild := filepath.Join(root, "apps", "lina-plugins", "with-build")
+	withoutBuild := filepath.Join(root, "apps", "lina-plugins", "without-build")
+	writeFile(t, filepath.Join(withBuild, "plugin.yaml"), "id: with-build\n")
+	writeFile(t, filepath.Join(withBuild, "hack", "config.yaml"), "build:\n  commands:\n    - node build.mjs\n    - pnpm --dir \"$(PLUGIN_ROOT)/frontend\" run build\n")
+	writeFile(t, filepath.Join(withoutBuild, "plugin.yaml"), "id: without-build\n")
+	writeFile(t, filepath.Join(withoutBuild, "hack", "config.yaml"), "gfcli:\n  gen:\n    dao: []\n")
+
+	plugins, err := discoverPluginBuildRoots(root)
+	if err != nil {
+		t.Fatalf("discoverPluginBuildRoots returned error: %v", err)
+	}
+	if len(plugins) != 2 {
+		t.Fatalf("unexpected plugin roots: %#v", plugins)
+	}
+
+	steps, err := resolvePluginConfigBuildSteps(root, withBuild)
+	if err != nil {
+		t.Fatalf("resolvePluginConfigBuildSteps returned error: %v", err)
+	}
+	if len(steps) != 2 {
+		t.Fatalf("unexpected plugin build steps: %#v", steps)
+	}
+	if steps[1].Command != "pnpm" || steps[1].Args[1] != filepath.Join(withBuild, "frontend") {
+		t.Fatalf("expected plugin root expansion in command, got %#v", steps[1])
+	}
+	emptySteps, err := resolvePluginConfigBuildSteps(root, withoutBuild)
+	if err != nil {
+		t.Fatalf("resolvePluginConfigBuildSteps without commands returned error: %v", err)
+	}
+	if len(emptySteps) != 0 {
+		t.Fatalf("expected no build steps, got %#v", emptySteps)
+	}
+}
+
 func TestRunWasmResolvesExplicitRelativeOutputFromRepositoryRoot(t *testing.T) {
 	root := t.TempDir()
 	pluginRoot := filepath.Join(root, "apps", "lina-plugins")
@@ -883,19 +1093,19 @@ func TestPrintStatusTableIncludesDevelopmentServiceDetails(t *testing.T) {
 	var stdout bytes.Buffer
 	err := devservice.PrintStatusTable(&stdout, []devservice.StatusRow{
 		{
-			Service: "Backend",
+			Entry:   "Lina Core",
 			Status:  "running",
 			URL:     "http://127.0.0.1:9120/",
 			PID:     "12345",
-			PIDFile: "temp/pids/backend.pid",
+			PIDFile: "temp/pids/lina-core.pid",
 			LogFile: "temp/lina-core.log",
 		},
 		{
-			Service: "Frontend",
+			Entry:   "Lina Vben",
 			Status:  "stopped",
 			URL:     "http://127.0.0.1:5666/",
 			PID:     "-",
-			PIDFile: "temp/pids/frontend.pid",
+			PIDFile: "temp/pids/lina-vben.pid",
 			LogFile: "temp/lina-vben.log",
 		},
 	})
@@ -906,12 +1116,12 @@ func TestPrintStatusTableIncludesDevelopmentServiceDetails(t *testing.T) {
 	output := stdout.String()
 	for _, expected := range []string{
 		"+",
-		"| Service",
-		"| Backend",
-		"| Frontend",
+		"| Entry",
+		"| Lina Core",
+		"| Lina Vben",
 		"| running",
 		"| stopped",
-		"temp/pids/backend.pid",
+		"temp/pids/lina-core.pid",
 		"temp/lina-vben.log",
 	} {
 		if !strings.Contains(output, expected) {
@@ -1382,8 +1592,8 @@ func TestRunDevStartsServicesAsAsyncProcessesAndPrintsFinalStatus(t *testing.T) 
 		t.Fatalf("runDev appears to have waited for service processes to exit: %s", elapsed)
 	}
 	for _, path := range []string{
-		filepath.Join(root, "temp", "pids", "backend.pid"),
-		filepath.Join(root, "temp", "pids", "frontend.pid"),
+		filepath.Join(root, "temp", "pids", "lina-core.pid"),
+		filepath.Join(root, "temp", "pids", "lina-vben.pid"),
 	} {
 		pid := devservice.ReadPID(path)
 		if pid == 0 {
@@ -1401,16 +1611,24 @@ func TestRunDevStartsServicesAsAsyncProcessesAndPrintsFinalStatus(t *testing.T) 
 	}
 
 	output := stdout.String()
+	for _, expected := range []string{
+		"Lina Core is ready: http://127.0.0.1:9120/",
+		"Lina Vben is ready: http://127.0.0.1:5666/",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected readiness output to contain %q, got:\n%s", expected, output)
+		}
+	}
 	statusTitleIndex := strings.LastIndex(output, "LinaPro Framework Status")
 	if statusTitleIndex < 0 {
 		t.Fatalf("expected final status title in output:\n%s", output)
 	}
 	finalOutput := output[statusTitleIndex:]
 	for _, expected := range []string{
-		"| Service",
-		"| Backend",
-		"| Frontend",
-		"temp/pids/backend.pid",
+		"| Entry",
+		"| Lina Core",
+		"| Lina Vben",
+		"temp/pids/lina-core.pid",
 		"temp/lina-vben.log",
 	} {
 		if !strings.Contains(finalOutput, expected) {
@@ -1441,7 +1659,8 @@ func TestRunDevPassesRepositoryWasmOutputWhenPluginsEnabled(t *testing.T) {
 	}
 	writeFrontendDependencySentinel(t, root)
 
-	application := newApp(ioDiscard{}, ioDiscard{}, strings.NewReader(""))
+	var stdout bytes.Buffer
+	application := newApp(&stdout, ioDiscard{}, strings.NewReader(""))
 	application.root = root
 	application.execCommand = func(_ context.Context, name string, args ...string) *exec.Cmd {
 		if name == "go" && len(args) >= 1 && args[0] == "build" {
@@ -1464,8 +1683,8 @@ func TestRunDevPassesRepositoryWasmOutputWhenPluginsEnabled(t *testing.T) {
 		t.Fatalf("runDev returned error: %v", err)
 	}
 	for _, path := range []string{
-		filepath.Join(root, "temp", "pids", "backend.pid"),
-		filepath.Join(root, "temp", "pids", "frontend.pid"),
+		filepath.Join(root, "temp", "pids", "lina-core.pid"),
+		filepath.Join(root, "temp", "pids", "lina-vben.pid"),
 	} {
 		pid := devservice.ReadPID(path)
 		if pid > 0 {
@@ -1479,6 +1698,9 @@ func TestRunDevPassesRepositoryWasmOutputWhenPluginsEnabled(t *testing.T) {
 	expected := filepath.Join(root, "temp", "output")
 	if !fileutil.FileExists(filepath.Join(expected, "linapro-demo-dynamic.wasm")) {
 		t.Fatalf("expected dev wasm artifact under %s", expected)
+	}
+	if !strings.Contains(stdout.String(), "Source plugin pages are mounted inside Lina Vben.") {
+		t.Fatalf("expected plugin entry hint, got:\n%s", stdout.String())
 	}
 }
 
@@ -1552,9 +1774,9 @@ func TestOfficialPluginGoWorkUsesDiscoversPluginModules(t *testing.T) {
 	pluginRoot := filepath.Join(root, "apps", "lina-plugins")
 	writeFile(t, filepath.Join(pluginRoot, "go.mod"), "module lina-plugins\n")
 	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "go.mod"), "module plugin-b\n")
-	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "plugin.yaml"), "id: plugin-b\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "plugin.yaml"), "id: plugin-b\ntype: source\n")
 	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "go.mod"), "module plugin-a\n")
-	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "plugin.yaml"), "id: plugin-a\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "plugin.yaml"), "id: plugin-a\ntype: source\n")
 
 	workspace, err := plugins.InspectOfficialWorkspace(root)
 	if err != nil {
@@ -1565,7 +1787,7 @@ func TestOfficialPluginGoWorkUsesDiscoversPluginModules(t *testing.T) {
 		t.Fatalf("plugins.GoWorkUses returned error: %v", err)
 	}
 	got := strings.Join(uses, ",")
-	expected := "./apps/lina-plugins,./apps/lina-plugins/plugin-a,./apps/lina-plugins/plugin-b"
+	expected := "./apps/lina-plugins/plugin-a,./apps/lina-plugins/plugin-b"
 	if got != expected {
 		t.Fatalf("unexpected plugin go.work uses: got %s expected %s", got, expected)
 	}
@@ -1863,11 +2085,12 @@ use (
 `
 	writeFile(t, filepath.Join(root, "go.work"), content)
 	pluginRoot := filepath.Join(root, "apps", "lina-plugins")
-	writeFile(t, filepath.Join(pluginRoot, "go.mod"), "module lina-plugins\n")
 	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "go.mod"), "module plugin-b\n")
-	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "plugin.yaml"), "id: plugin-b\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "plugin.yaml"), "id: plugin-b\ntype: source\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-b", "backend", "plugin.go"), "package backend\n")
 	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "go.mod"), "module plugin-a\n")
-	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "plugin.yaml"), "id: plugin-a\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "plugin.yaml"), "id: plugin-a\ntype: source\n")
+	writeFile(t, filepath.Join(pluginRoot, "plugin-a", "backend", "plugin.go"), "package backend\n")
 
 	workspace, err := plugins.InspectOfficialWorkspace(root)
 	if err != nil {
@@ -1896,7 +2119,7 @@ use (
 use (
 	../apps/lina-core
 	../hack/tools/linactl
-	../apps/lina-plugins
+	./official-plugins
 	../apps/lina-plugins/plugin-a
 	../apps/lina-plugins/plugin-b
 )
@@ -1904,8 +2127,15 @@ use (
 	if string(pluginContent) != expected {
 		t.Fatalf("unexpected temporary plugin go.work:\n%s", string(pluginContent))
 	}
-	if fileutil.DirExists(filepath.Join(root, "temp", "official-plugins")) {
-		t.Fatalf("expected existing official plugin root module to be reused without generated fallback")
+	aggregateGo, err := os.ReadFile(filepath.Join(root, "temp", "official-plugins", "plugins.go"))
+	if err != nil {
+		t.Fatalf("read aggregate plugins.go: %v", err)
+	}
+	aggregateText := string(aggregateGo)
+	for _, expectedImport := range []string{`_ "plugin-a/backend"`, `_ "plugin-b/backend"`} {
+		if !strings.Contains(aggregateText, expectedImport) {
+			t.Fatalf("expected aggregate imports to contain %s, got:\n%s", expectedImport, aggregateText)
+		}
 	}
 }
 
@@ -2839,7 +3069,10 @@ func TestHelperEmbeddedGoFrameCtrl(t *testing.T) {
 	}
 	application := newApp(os.Stdout, os.Stderr, strings.NewReader(""))
 	application.root = os.Args[len(os.Args)-1]
-	if err := runEmbeddedGoFrame(context.Background(), application, commandInput{Args: []string{"gen", "ctrl"}}); err != nil {
+	if err := runEmbeddedGoFrame(context.Background(), application, commandInput{
+		Args:   []string{"gen", "ctrl"},
+		Params: map[string]string{"config_dir": filepath.Join(application.root, "apps", "lina-core", "hack")},
+	}); err != nil {
 		t.Fatalf("run embedded GoFrame ctrl: %v", err)
 	}
 	os.Exit(0)
@@ -2950,6 +3183,46 @@ type capturedCommand struct {
 	name string
 	args []string
 	cmd  *exec.Cmd
+}
+
+func writeBuildFixture(t *testing.T, root string) {
+	t.Helper()
+	writeFile(t, filepath.Join(root, "go.work"), "go 1.25.0\n\nuse ./apps/lina-core\n")
+	writeFile(t, filepath.Join(root, "hack", "config.yaml"), "build:\n  platforms:\n    - auto\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-vben", "apps", "web-antd", "dist", "index.html"), "host")
+	writeFile(t, filepath.Join(root, "apps", "lina-core", "manifest", "config", "config.template.yaml"), "template: true\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-core", "manifest", "config", "metadata.yaml"), "framework:\n  version: test\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-core", "manifest", "sql", "001.sql"), "-- sql\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-core", "manifest", "i18n", "en", "messages.json"), "{}\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox", "plugin.yaml"), "id: john-ai-agentbox\ntype: source\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-plugins", "john-ai-agentbox", "hack", "config.yaml"), "build:\n  commands:\n    - pnpm --dir \"$(PLUGIN_ROOT)/frontend\" run build\n")
+	writeFile(t, filepath.Join(root, "apps", "lina-core", "go.mod"), "module lina-core\n")
+}
+
+func runBuildWithCapturedCommands(t *testing.T, root string, env []string, input commandInput) []capturedCommand {
+	t.Helper()
+	var calls []capturedCommand
+	application := newApp(ioDiscard{}, ioDiscard{}, strings.NewReader(""))
+	application.root = root
+	if env != nil {
+		application.env = env
+	}
+	application.lookPath = func(name string) (string, error) {
+		return name, nil
+	}
+	application.execCommand = func(_ context.Context, name string, args ...string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestHelperCommandSuccess", "--")
+		calls = append(calls, capturedCommand{
+			name: name,
+			args: append([]string(nil), args...),
+			cmd:  cmd,
+		})
+		return cmd
+	}
+	if err := runBuild(context.Background(), application, input); err != nil {
+		t.Fatalf("runBuild returned error: %v", err)
+	}
+	return calls
 }
 
 func newGoFrameDispatchTestApp(t *testing.T, root string, executable string) (*app, *[]capturedCommand) {
