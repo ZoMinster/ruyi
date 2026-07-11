@@ -104,10 +104,10 @@ source/dynamic 两套升级骨架分散在 `sourceupgrade`、`runtimeupgrade`、
 
 ## 10. Builtin 插件分发治理
 
-**决策**：在插件 manifest 中新增`distribution`字段，缺省为`marketplace`，支持`builtin`声明项目内建源码插件。`builtin`必须同时满足源码插件和编译期注册，动态插件不能声明`builtin`。
+**决策**：在插件 manifest 中新增`distribution`字段，缺省归一化为`managed`，支持`builtin`声明项目内建源码插件。合法值仅`managed|builtin`；旧值`marketplace`在有效契约中拒绝。`builtin`必须同时满足源码插件和编译期注册，动态插件不能声明`builtin`。
 
 **关键设计**：
-- `sys_plugin`基线表结构新增`distribution varchar(32) not null default 'marketplace'`
+- `sys_plugin`基线表结构使用`distribution varchar(32) not null default 'managed'`
 - 普通插件管理列表默认隐藏`builtin`插件，写操作由服务端 guard 统一拒绝
 - 启动期独立执行`BootstrapBuiltinPlugins(ctx)`，在插件路由、cron、前端包预热前自动安装、启用和安全升级 builtin 源码插件
 - 生命周期变化继续复用现有依赖解析、SQL 迁移、资源同步、缓存失效、enabled snapshot 和集群主节点边界
@@ -151,3 +151,17 @@ source/dynamic 两套升级骨架分散在 `sourceupgrade`、`runtimeupgrade`、
 - 接口按 owner 分为三类：生产者完整契约、稳定产品/运行期契约、消费方窄依赖
 - 消费方优先复用目标组件已有`Service`或稳定契约；仅当完整契约不能清晰表达消费边界时才在消费方包内定义窄依赖接口
 - 收敛`i18n.Service`，删除无业务入口的 i18n 管理诊断 API 和源码插件消息搜索方法
+
+## Plugin-Owned Domain Capabilities
+
+Non-core domain capabilities are owned by domain owner plugins. Public contracts live under `apps/lina-plugins/<plugin-id>/backend/cap/<domain>cap`. Core keeps only the plugin kernel, dependency governance, generic capability descriptors, dynamic routing, authorization, audit, and lifecycle controls.
+
+Owner-aware dynamic `hostServices` use structured `owner` and `version` fields rather than encoding ownership into the service string. Core merges static core-owned catalog entries with owner descriptors, stores authorization snapshots keyed by `owner/service/version`, and dispatches through a generic invoker path instead of domain-specific switches. Consuming plugins must declare a hard `dependencies.plugins` entry for the owner; reverse disable/uninstall/upgrade checks protect downstream consumers and must not N+1 on first-screen lists.
+
+AI is the first owner pilot. `linapro-ai-core` owns text and multimodal contracts, provider SPI, and the dynamic guest bridge SDK. Core no longer ships production `aicap` contracts, `ProvideAIText`, or AI-specific codecs/dispatchers. Capability IDs use `plugin.linapro-ai-core.ai.<family>.v1`. Dynamic descriptors only publish runnable methods; remaining multimodal methods stay in the owner contract until invokers exist.
+
+Import boundary scanning via `linactl plugins.check` allows cross-plugin production imports only into owner `backend/cap/...`. Runtime caches for registries, authorization snapshots, and owner availability follow critical runtime data rules: authoritative sources, post-commit invalidation, cluster coordination, and rebuild-or-deny on failure.
+
+## Host Layer Simplification
+
+New core-owned host service methods must use JSON envelopes. Existing dedicated codecs are frozen as a method-level allowlist. Wire constants for services and methods live only under `protocol/hostservices` and are referenced by the catalog; no `go generate`. Historical `HostServiceCapabilityJSON*` aliases are removed in favor of `HostServiceJSON*`. Upgrade preview/execute is owned by the lifecycle facade; the root plugin package no longer constructs or holds a parallel `upgrade.Service`, while public type aliases remain stable for management API callers.

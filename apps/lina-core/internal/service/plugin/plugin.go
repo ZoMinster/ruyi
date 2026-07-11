@@ -40,7 +40,6 @@ import (
 	"lina-core/internal/model/entity"
 
 	"lina-core/pkg/plugin/capability"
-	aitextsvc "lina-core/pkg/plugin/capability/aicap/aitext"
 	"lina-core/pkg/plugin/capability/hostconfigcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
@@ -150,6 +149,9 @@ type (
 
 	// DependencyReverseDependent exposes one installed downstream hard dependency.
 	DependencyReverseDependent = plugindep.ReverseDependentProjection
+
+	// DependencyOwnerHostServiceSummary exposes owner-aware host service summaries for reverse diagnostics.
+	DependencyOwnerHostServiceSummary = plugindep.OwnerHostServiceProjection
 
 	// DependencyCheckResult is the management-facing dependency status snapshot.
 	DependencyCheckResult = plugindep.CheckProjection
@@ -331,7 +333,6 @@ type integrationService interface {
 	RegisterSourcePluginProviderFactories(
 		tenantManager *tenantspi.Manager,
 		orgManager *orgspi.Manager,
-		aiTextManager *aitextsvc.Manager,
 	) error
 	// DispatchHookEvent dispatches one named hook event to all enabled plugins.
 	DispatchHookEvent(
@@ -389,8 +390,6 @@ type stateService interface {
 
 // capabilityEnvService defines provider construction inputs scoped to one plugin.
 type capabilityEnvService interface {
-	// AITextProviderEnv returns typed, plugin-scoped text AI provider construction inputs.
-	AITextProviderEnv(ctx context.Context, pluginID string) aitextsvc.ProviderEnv
 	// OrgProviderEnv returns typed, plugin-scoped organization-provider construction inputs.
 	OrgProviderEnv(ctx context.Context, pluginID string) orgspi.ProviderEnv
 	// TenantProviderEnv returns typed, plugin-scoped tenant-provider construction inputs.
@@ -451,8 +450,6 @@ type serviceImpl struct {
 	runtimeSvc runtime.Service
 	// integrationSvc provides host extension, menu, hook, and resource integration.
 	integrationSvc integration.Service
-	// upgradeSvc provides unified source and dynamic upgrade planning and execution.
-	upgradeSvc upgrade.Service
 	// frontendSvc manages in-memory frontend bundles for dynamic plugins.
 	frontendSvc frontend.Service
 	// openapiSvc projects dynamic routes into the host OpenAPI document.
@@ -535,8 +532,13 @@ func New(
 	if tenantSvc == nil {
 		return nil, gerror.New("plugin service requires a non-nil tenant service")
 	}
+	ownerCapabilities, err := buildSourceCapabilityRegistry()
+	if err != nil {
+		return nil, gerror.Wrap(err, "build source capability registry failed")
+	}
 	wasmRuntimeInstance, err := newWasmHostServiceRuntime(
 		capabilityServices,
+		ownerCapabilities,
 		pluginConfigFactory,
 		hostConfigSvc,
 		manifestresource.NewFactory(""),
@@ -658,6 +660,8 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	service.upgradeSvc = upgradeSvc
+	if err = lifecycleSvc.BindUpgrade(upgradeSvc); err != nil {
+		return nil, err
+	}
 	return service, nil
 }
