@@ -165,6 +165,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
         align: 'left',
         field: 'id',
         headerAlign: 'center',
+        // Slightly wider than name for long plugin IDs without dominating the row.
         minWidth: 220,
         title: $t('pages.system.plugin.fields.id'),
       },
@@ -173,7 +174,9 @@ const [Grid, gridApi] = useVbenVxeGrid({
         className: 'plugin-name-column',
         field: 'name',
         headerAlign: 'center',
-        minWidth: 200,
+        // Compact width; builtin / auto-enable badges share the cell flex row.
+        minWidth: 180,
+        showOverflow: false,
         slots: { default: 'name' },
         title: $t('pages.system.plugin.fields.name'),
       },
@@ -182,7 +185,8 @@ const [Grid, gridApi] = useVbenVxeGrid({
         className: 'plugin-description-column',
         field: 'description',
         headerAlign: 'center',
-        minWidth: 260,
+        // Wider than name so capability blurbs stay more readable than titles.
+        minWidth: 220,
         showOverflow: false,
         slots: { default: 'description' },
         title: $t('pages.system.plugin.fields.description'),
@@ -450,6 +454,12 @@ function isTenantProvisioningPolicySupported(row: PluginListItem) {
     row.scopeNature === 'tenant_aware' &&
     row.installMode === 'tenant_scoped'
   );
+}
+
+function buildBuiltinPluginTooltip(row: PluginListItem) {
+  return $t('pages.system.plugin.messages.builtinTooltip', {
+    pluginId: row.id,
+  });
 }
 
 function buildAutoEnableManagedTooltip(row: PluginListItem) {
@@ -923,11 +933,28 @@ async function handleLifecyclePreconditionForce(payload: { pluginId: string }) {
       </template>
 
       <template #name="{ row }">
+        <!--
+          Constrain the name cell to the column width so long titles truncate
+          and badge tooltips stay hoverable. min-w-max + shrink-0 name previously
+          spilled into the description column and intercepted pointer events.
+        -->
         <div
-          class="inline-flex min-w-max max-w-full items-center gap-1.5 whitespace-nowrap"
+          class="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap"
           :data-testid="`plugin-name-cell-${row.id}`"
         >
-          <span class="shrink-0 whitespace-nowrap">{{ row.name }}</span>
+          <span class="min-w-0 truncate" :title="row.name">{{ row.name }}</span>
+          <Tooltip
+            v-if="isBuiltinPlugin(row)"
+            :title="buildBuiltinPluginTooltip(row)"
+          >
+            <Tag
+              class="m-0 shrink-0 whitespace-nowrap leading-5"
+              :data-testid="`plugin-builtin-tag-${row.id}`"
+              color="purple"
+            >
+              {{ $t('pages.system.plugin.builtinBadge') }}
+            </Tag>
+          </Tooltip>
           <Tooltip
             v-if="isAutoEnableManaged(row)"
             :title="buildAutoEnableManagedTooltip(row)"
