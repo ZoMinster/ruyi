@@ -138,3 +138,7 @@ apps/lina-plugins/*/temp/
 # AGENTS.md is the only truth, link to it if necessary.
 /CLAUDE.md
 /GEMINI.md
+
+# rustfs
+apps/rustfs/rustfs_data/
+apps/rustfs/logs/
