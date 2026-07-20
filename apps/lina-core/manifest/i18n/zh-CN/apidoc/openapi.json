@@ -8,6 +8,9 @@
       "securitySchemes": {
         "BearerAuth": {
           "dc": "JWT Bearer Token 认证"
+        },
+        "LinaHMAC": {
+          "dc": "LINA-HMAC-SHA256-V1 请求签名认证，需要 Authorization、X-Lina-Date、X-Lina-Nonce 和 X-Lina-Content-SHA256 请求头"
         }
       },
       "servers": {

@@ -140,6 +140,18 @@ func (s *serviceImpl) IsEnabled(ctx context.Context, pluginID string) bool {
 	return s.integrationSvc.CanExposeBusinessEntries(ctx, pluginID)
 }
 
+// ResolveBusinessEntryEnablement resolves one bounded plugin set without
+// repeating registry or tenant-state queries for each plugin.
+func (s *serviceImpl) ResolveBusinessEntryEnablement(
+	ctx context.Context,
+	pluginIDs []string,
+) (map[string]bool, error) {
+	if err := s.ensureRuntimeCacheFresh(ctx); err != nil {
+		return nil, err
+	}
+	return s.integrationSvc.ResolveBusinessEntryEnablement(ctx, pluginIDs)
+}
+
 // IsProviderEnabled returns whether pluginID is platform-enabled for framework
 // capability provider use.
 func (s *serviceImpl) IsProviderEnabled(ctx context.Context, pluginID string) bool {

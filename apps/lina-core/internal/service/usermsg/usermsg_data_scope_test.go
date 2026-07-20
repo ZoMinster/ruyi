@@ -19,6 +19,7 @@ import (
 	"lina-core/internal/model/do"
 	"lina-core/internal/service/notify"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
 )
@@ -113,6 +114,8 @@ func (s userMsgScopeStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by user-message tests.
 func (s userMsgScopeStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s userMsgScopeStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by user-message tests.
 func (s userMsgScopeStaticBizCtx) SetTenant(context.Context, int) {}

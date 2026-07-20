@@ -3,7 +3,11 @@
 
 package pluginhost
 
-import "strings"
+import (
+	"strings"
+
+	"lina-core/pkg/plugin/capability/authcap"
+)
 
 // sourceRouteMethodAll is the normalized wildcard method marker used by route
 // binding keys.
@@ -23,6 +27,9 @@ type SourceRouteBinding struct {
 	// Documentable reports whether the handler uses GoFrame standard DTO routing
 	// and can therefore be projected into the host OpenAPI document.
 	Documentable bool
+	// Authorization stores the normalized route actor and machine-authorization
+	// metadata captured from the request DTO.
+	Authorization authcap.RouteAuthorization
 }
 
 // Key returns the normalized uniqueness key of the binding.
@@ -36,7 +43,10 @@ func CloneSourceRouteBindings(bindings []SourceRouteBinding) []SourceRouteBindin
 		return []SourceRouteBinding{}
 	}
 	items := make([]SourceRouteBinding, len(bindings))
-	copy(items, bindings)
+	for index, binding := range bindings {
+		binding.Authorization.Actors = append([]authcap.ActorKind(nil), binding.Authorization.Actors...)
+		items[index] = binding
+	}
 	return items
 }
 

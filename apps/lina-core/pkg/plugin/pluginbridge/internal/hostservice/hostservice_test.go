@@ -252,7 +252,10 @@ func TestValidateHostServiceSpecsAcceptsDomainServicesWithoutResources(t *testin
 		{Service: hostservices.HostServiceJobs, Methods: []string{hostservices.HostServiceMethodJobsBatchGet, hostservices.HostServiceMethodJobsList, hostservices.HostServiceMethodJobsEnsureVisible, hostservices.HostServiceMethodJobsRegister}},
 		{Service: hostservices.HostServiceAPIDoc, Methods: []string{hostservices.HostServiceMethodAPIDocFindRouteTitleOperationKeys}},
 		{Service: hostservices.HostServiceBizCtx, Methods: []string{hostservices.HostServiceMethodBizCtxCurrent}},
-		{Service: hostservices.HostServiceRoute, Methods: []string{hostservices.HostServiceMethodRouteMetadataGet}},
+		{Service: hostservices.HostServiceRoute, Methods: []string{
+			hostservices.HostServiceMethodRouteMetadataGet,
+			hostservices.HostServiceMethodRouteMachineAuthorizationsList,
+		}},
 		{Service: hostservices.HostServiceNotifications, Methods: []string{hostservices.HostServiceMethodNotificationsBatchGetMessages, hostservices.HostServiceMethodNotificationsList, hostservices.HostServiceMethodNotificationsDelete, hostservices.HostServiceMethodNotificationsMarkRead}},
 		{Service: hostservices.HostServicePlugins, Methods: []string{hostservices.HostServiceMethodPluginsCurrent}},
 	}

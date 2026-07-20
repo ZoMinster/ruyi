@@ -7,6 +7,7 @@ package authcap
 import (
 	"lina-core/pkg/plugin/capability/authcap/authz"
 	"lina-core/pkg/plugin/capability/authcap/extlogin"
+	"lina-core/pkg/plugin/capability/authcap/machinecoord"
 	"lina-core/pkg/plugin/capability/authcap/token"
 )
 
@@ -21,6 +22,9 @@ type Service interface {
 	// service is plugin-scoped by the host so provider ownership and the calling
 	// plugin identity are enforced by the host, not by plugin input.
 	ExternalLogin() extlogin.Service
+	// MachineCoordination returns the plugin-bound machine access revision and
+	// replay coordination service. Unscoped host directories return a fail-closed service.
+	MachineCoordination() machinecoord.Service
 }
 
 // serviceImpl stores authentication, authorization, and external-login sub
@@ -29,21 +33,33 @@ type serviceImpl struct {
 	token         token.Service
 	authz         authz.Service
 	externalLogin extlogin.Service
+	machineCoord  machinecoord.Service
 }
 
 // Ensure serviceImpl implements Service.
 var _ Service = (*serviceImpl)(nil)
 
 // New creates an authentication capability namespace from explicit sub services.
-func New(tokenSvc token.Service, authzSvc authz.Service, externalLoginSvc extlogin.Service) Service {
-	return &serviceImpl{token: tokenSvc, authz: authzSvc, externalLogin: externalLoginSvc}
+func New(
+	tokenSvc token.Service,
+	authzSvc authz.Service,
+	externalLoginSvc extlogin.Service,
+	machineCoordSvc machinecoord.Service,
+) Service {
+	return &serviceImpl{
+		token: tokenSvc, authz: authzSvc, externalLogin: externalLoginSvc, machineCoord: machineCoordSvc,
+	}
 }
 
 // ForPlugin returns a plugin-scoped authentication namespace. Token and Authz
 // sub capabilities are shared and returned unchanged; ExternalLogin is replaced
 // with the supplied plugin-bound service so external-identity login enforces the
 // calling plugin's provider ownership and enablement.
-func ForPlugin(base Service, externalLoginSvc extlogin.Service) Service {
+func ForPlugin(
+	base Service,
+	externalLoginSvc extlogin.Service,
+	machineCoordSvc machinecoord.Service,
+) Service {
 	if base == nil {
 		return nil
 	}
@@ -51,7 +67,16 @@ func ForPlugin(base Service, externalLoginSvc extlogin.Service) Service {
 		token:         base.Token(),
 		authz:         base.Authz(),
 		externalLogin: externalLoginSvc,
+		machineCoord:  machineCoordSvc,
 	}
+}
+
+// MachineCoordination returns machine access revision and replay coordination.
+func (s *serviceImpl) MachineCoordination() machinecoord.Service {
+	if s == nil {
+		return nil
+	}
+	return s.machineCoord
 }
 
 // Token returns tenant token handoff and impersonation token operations.

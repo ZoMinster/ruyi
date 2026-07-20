@@ -25,6 +25,8 @@ import (
 	"lina-core/internal/service/role"
 	"lina-core/internal/service/session"
 	"lina-core/pkg/plugin/capability"
+	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	bridgecontract "lina-core/pkg/plugin/pluginbridge/contract"
 	"lina-core/pkg/plugin/pluginhost"
 )
@@ -188,6 +190,9 @@ type Service interface {
 	// ReconcileRuntimePlugins runs one convergence pass. It is safe to call from
 	// both the background loop and synchronous management flows.
 	ReconcileRuntimePlugins(ctx context.Context) error
+	// SyncDynamicRouteAuthorizations rebuilds installed dynamic route metadata in
+	// the shared global authorization catalog.
+	SyncDynamicRouteAuthorizations(ctx context.Context) error
 	// RefreshInstalledRuntimePluginReleases repairs same-version installed
 	// dynamic releases whose archived artifact or snapshot is stale while
 	// avoiding install or state-toggle side effects for unrelated registry rows.
@@ -287,6 +292,11 @@ type serviceImpl struct {
 	lastReconcilerSweepAt time.Time
 	// i18nSvc localizes plugin metadata and invalidates dynamic-plugin bundles.
 	i18nSvc i18nsvc.Service
+	// routeAuthorizations is the process-wide immutable machine route catalog.
+	routeAuthorizations authcap.RouteAuthorizationCatalogue
+	// authProviders dispatches non-Bearer authorization schemes to the exact
+	// enabled source-plugin provider.
+	authProviders authspi.Dispatcher
 }
 
 // New creates a new runtime Service with the given sub-service dependencies.
@@ -307,6 +317,8 @@ func New(
 	dependencyValidator DependencyValidator,
 	storageCleanupServices capability.Services,
 	wasmRuntime wasm.Runtime,
+	authProviders authspi.Dispatcher,
+	routeAuthorizations authcap.RouteAuthorizationCatalogue,
 ) Service {
 	service := &serviceImpl{
 		catalogSvc:                 catalogSvc,
@@ -326,6 +338,8 @@ func New(
 		wasmRuntime:                wasmRuntime,
 		reconcilerRevisionObserved: revisionctrl.NewObservedRevision(),
 		i18nSvc:                    i18nSvc,
+		routeAuthorizations:        routeAuthorizations,
+		authProviders:              authProviders,
 	}
 	service.configureReconcilerRevisionController()
 	return service

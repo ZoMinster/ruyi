@@ -97,6 +97,7 @@ func TestOpenAPII18nBundlesCoverCurrentMetadata(t *testing.T) {
 		"core.openapi.info.title",
 		"core.openapi.info.description",
 		"core.openapi.securitySchemes.BearerAuth.dc",
+		"core.openapi.securitySchemes.LinaHMAC.dc",
 		"core.openapi.servers.0.dc",
 		"core.api.auth.v1.LoginReq.meta.tags",
 		"core.api.auth.v1.LoginReq.fields.username.dc",

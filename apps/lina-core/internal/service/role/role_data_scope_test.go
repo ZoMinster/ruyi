@@ -14,6 +14,7 @@ import (
 	"lina-core/internal/model/entity"
 	"lina-core/internal/service/datascope"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/capmodel"
 	"lina-core/pkg/plugin/capability/orgcap"
@@ -141,6 +142,8 @@ func (s roleScopeStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by role data-scope tests.
 func (s roleScopeStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s roleScopeStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by role data-scope tests.
 func (s roleScopeStaticBizCtx) SetTenant(context.Context, int) {}

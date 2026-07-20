@@ -16,6 +16,7 @@ import (
 	"lina-core/internal/service/plugin/internal/store"
 	rolesvc "lina-core/internal/service/role"
 	"lina-core/internal/service/session"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -64,6 +65,8 @@ func newRuntimeWiringValidationService(t *testing.T) *serviceImpl {
 		runtimeWiringDependencyValidator{},
 		nil,
 		nil,
+		nil,
+		authcap.NewRouteAuthorizationCatalogue(),
 	).(*serviceImpl)
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 
 	"lina-core/internal/model"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 )
 
@@ -33,6 +34,10 @@ type Service interface {
 	// SetUser records authenticated token, user identity, and session client
 	// type after token validation.
 	SetUser(ctx context.Context, tokenId string, userId int, username string, status int, clientType string)
+	// SetActor records the host-trusted principal projection. Machine actors
+	// clear every user, role-snapshot, impersonation, and session field so they
+	// cannot inherit user authorization state.
+	SetActor(ctx context.Context, actor authcap.Actor)
 	// SetTenant records the resolved tenant boundary for tenant-aware services.
 	SetTenant(ctx context.Context, tenantId int)
 	// SetImpersonation records platform impersonation metadata used by tenancy

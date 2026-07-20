@@ -3,7 +3,7 @@ module lina-core
 go 1.25.0
 
 require (
-	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.0
+	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.1
 	github.com/gogf/gf/v2 v2.10.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/mssola/useragent v1.0.0

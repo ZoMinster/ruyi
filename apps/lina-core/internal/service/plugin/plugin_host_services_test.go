@@ -43,6 +43,13 @@ func (r testPluginStateReader) IsEnabled(context.Context, string) bool {
 	return false
 }
 
+func (r testPluginStateReader) ResolveBusinessEntryEnablement(
+	context.Context,
+	[]string,
+) (map[string]bool, error) {
+	return map[string]bool{}, nil
+}
+
 func (r testPluginStateReader) IsProviderEnabled(_ context.Context, pluginID string) bool {
 	return r.providers[pluginID]
 }

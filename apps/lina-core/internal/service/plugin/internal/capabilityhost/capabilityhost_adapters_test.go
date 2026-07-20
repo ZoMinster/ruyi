@@ -27,6 +27,7 @@ import (
 	storagesvc "lina-core/internal/service/storage"
 	"lina-core/pkg/bizerr"
 	"lina-core/pkg/plugin/capability/apidoccap"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/authcap/extlogin"
 	"lina-core/pkg/plugin/capability/authcap/token"
 	capabilityfilecap "lina-core/pkg/plugin/capability/filecap"
@@ -332,6 +333,18 @@ type fakeExternalLoginPluginState struct {
 // IsEnabled reports the configured enablement flag.
 func (s fakeExternalLoginPluginState) IsEnabled(context.Context, string) bool { return s.enabled }
 
+// ResolveBusinessEntryEnablement returns one deterministic batch projection.
+func (s fakeExternalLoginPluginState) ResolveBusinessEntryEnablement(
+	_ context.Context,
+	pluginIDs []string,
+) (map[string]bool, error) {
+	result := make(map[string]bool, len(pluginIDs))
+	for _, pluginID := range pluginIDs {
+		result[pluginID] = s.enabled
+	}
+	return result, nil
+}
+
 // IsProviderEnabled reports the configured enablement flag.
 func (s fakeExternalLoginPluginState) IsProviderEnabled(context.Context, string) bool {
 	return s.enabled
@@ -461,6 +474,9 @@ func TestNewWiresCompleteUnifiedDirectory(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		fakeExternalLoginPluginState{enabled: true},
+		newCapabilityHostTestRouteCatalogue(),
+		nil,
 		nil,
 		nil,
 		noopJobOwner{},
@@ -544,6 +560,9 @@ func TestNewReusesTenantServiceFilterContract(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		fakeExternalLoginPluginState{enabled: true},
+		newCapabilityHostTestRouteCatalogue(),
+		nil,
 		nil,
 		nil,
 		noopJobOwner{},
@@ -576,6 +595,9 @@ func TestNewRequiresHostConfigService(t *testing.T) {
 		t.Fatalf("create lock service: %v", err)
 	}
 	_, err = New(
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -621,6 +643,9 @@ func TestNewRequiresTenantService(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		fakeExternalLoginPluginState{enabled: true},
+		newCapabilityHostTestRouteCatalogue(),
+		nil,
 		nil,
 		nil,
 		noopJobOwner{},
@@ -640,6 +665,10 @@ func TestNewRequiresTenantService(t *testing.T) {
 
 func newCapabilityHostTestTenantService() tenantspi.Service {
 	return tenantspi.New(nil, nil, nil, internalbizctx.New())
+}
+
+func newCapabilityHostTestRouteCatalogue() authcap.RouteAuthorizationCatalogue {
+	return authcap.NewRouteAuthorizationCatalogue()
 }
 
 func newCapabilityHostLocalStorageProviderForTest(t *testing.T) storagecap.Provider {

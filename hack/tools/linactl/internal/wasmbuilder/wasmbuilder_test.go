@@ -231,7 +231,7 @@ func TestBuildRuntimeWasmArtifactFromSourceEmbedsDeclaredAssets(t *testing.T) {
 	mustWriteFile(
 		t,
 		filepath.Join(pluginDir, "backend", "api", "dynamic", "v1", "review_summary.go"),
-		"package v1\n\nimport \"github.com/gogf/gf/v2/frame/g\"\n\ntype ReviewSummaryReq struct {\n\tg.Meta `path:\"/review-summary\" method:\"get\" tags:\"动态插件示例\" summary:\"查询摘要\" dc:\"返回一个动态插件摘要\" access:\"login\" permission:\"plugin-dev-dynamic-builder:review:view\" operLog:\"other\"`\n}\n",
+		"package v1\n\nimport \"github.com/gogf/gf/v2/frame/g\"\n\ntype ReviewSummaryReq struct {\n\tg.Meta `path:\"/review-summary\" method:\"get\" tags:\"动态插件示例\" summary:\"查询摘要\" dc:\"返回一个动态插件摘要\" access:\"login\" permission:\"plugin-dev-dynamic-builder:review:view\" operation:\"plugin-dev-dynamic-builder.review.read\" resource:\"plugin-dev-dynamic-builder.review\" action:\"read\" actors:\"user,machine\" operLog:\"other\"`\n}\n",
 	)
 	mustWriteFile(
 		t,
@@ -409,6 +409,17 @@ func TestBuildRuntimeWasmArtifactFromSourceEmbedsDeclaredAssets(t *testing.T) {
 	}
 	if routes[0].Meta["operLog"] != "other" {
 		t.Fatalf("expected custom route metadata to preserve operLog, got %#v", routes[0].Meta)
+	}
+	if routes[0].Operation != "plugin-dev-dynamic-builder.review.read" ||
+		routes[0].Resource != "plugin-dev-dynamic-builder.review" ||
+		routes[0].Action != "read" ||
+		routes[0].Actors != "user,machine" {
+		t.Fatalf("expected machine authorization tags in the route contract, got %#v", routes[0])
+	}
+	for _, reserved := range []string{"operation", "resource", "action", "actors"} {
+		if _, exists := routes[0].Meta[reserved]; exists {
+			t.Fatalf("expected reserved route metadata %q outside plugin meta: %#v", reserved, routes[0].Meta)
+		}
 	}
 
 	bridgeSpec := &protocol.BridgeSpec{}

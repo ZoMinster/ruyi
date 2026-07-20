@@ -10,29 +10,30 @@ import (
 )
 
 const (
-	CapabilityRuntime       = hostservice.CapabilityRuntime
-	CapabilityStorage       = hostservice.CapabilityStorage
-	CapabilityHTTPRequest   = hostservice.CapabilityHTTPRequest
-	CapabilityDataRead      = hostservice.CapabilityDataRead
-	CapabilityDataMutate    = hostservice.CapabilityDataMutate
-	CapabilityCache         = hostservice.CapabilityCache
-	CapabilityLock          = hostservice.CapabilityLock
-	CapabilityHostConfig    = hostservice.CapabilityHostConfig
-	CapabilityManifest      = hostservice.CapabilityManifest
-	CapabilityAPIDoc        = hostservice.CapabilityAPIDoc
-	CapabilityAuthToken     = hostservice.CapabilityAuthToken
-	CapabilityAuthz         = hostservice.CapabilityAuthz
-	CapabilityUsers         = hostservice.CapabilityUsers
-	CapabilityBizCtx        = hostservice.CapabilityBizCtx
-	CapabilityDict          = hostservice.CapabilityDict
-	CapabilityFiles         = hostservice.CapabilityFiles
-	CapabilityJobs          = hostservice.CapabilityJobs
-	CapabilityNotifications = hostservice.CapabilityNotifications
-	CapabilityPlugins       = hostservice.CapabilityPlugins
-	CapabilityRoute         = hostservice.CapabilityRoute
-	CapabilitySessions      = hostservice.CapabilitySessions
-	CapabilityOrg           = hostservice.CapabilityOrg
-	CapabilityTenant        = hostservice.CapabilityTenant
+	CapabilityRuntime                 = hostservice.CapabilityRuntime
+	CapabilityStorage                 = hostservice.CapabilityStorage
+	CapabilityHTTPRequest             = hostservice.CapabilityHTTPRequest
+	CapabilityDataRead                = hostservice.CapabilityDataRead
+	CapabilityDataMutate              = hostservice.CapabilityDataMutate
+	CapabilityCache                   = hostservice.CapabilityCache
+	CapabilityLock                    = hostservice.CapabilityLock
+	CapabilityHostConfig              = hostservice.CapabilityHostConfig
+	CapabilityManifest                = hostservice.CapabilityManifest
+	CapabilityAPIDoc                  = hostservice.CapabilityAPIDoc
+	CapabilityAuthToken               = hostservice.CapabilityAuthToken
+	CapabilityAuthz                   = hostservice.CapabilityAuthz
+	CapabilityAuthMachineCoordination = hostservice.CapabilityAuthMachineCoordination
+	CapabilityUsers                   = hostservice.CapabilityUsers
+	CapabilityBizCtx                  = hostservice.CapabilityBizCtx
+	CapabilityDict                    = hostservice.CapabilityDict
+	CapabilityFiles                   = hostservice.CapabilityFiles
+	CapabilityJobs                    = hostservice.CapabilityJobs
+	CapabilityNotifications           = hostservice.CapabilityNotifications
+	CapabilityPlugins                 = hostservice.CapabilityPlugins
+	CapabilityRoute                   = hostservice.CapabilityRoute
+	CapabilitySessions                = hostservice.CapabilitySessions
+	CapabilityOrg                     = hostservice.CapabilityOrg
+	CapabilityTenant                  = hostservice.CapabilityTenant
 
 	HostServiceRuntime       = hostservices.HostServiceRuntime
 	HostServiceStorage       = hostservices.HostServiceStorage
@@ -117,6 +118,11 @@ const (
 	HostServiceMethodAuthzHasPermission                               = hostservices.HostServiceMethodAuthzHasPermission
 	HostServiceMethodAuthzIsPlatformAdmin                             = hostservices.HostServiceMethodAuthzIsPlatformAdmin
 	HostServiceMethodAuthzReplaceRolePermissions                      = hostservices.HostServiceMethodAuthzReplaceRolePermissions
+	HostServiceMethodAuthMachineCoordinationConfigure                 = hostservices.HostServiceMethodAuthMachineCoordinationConfigure
+	HostServiceMethodAuthMachineCoordinationClusterEnabled            = hostservices.HostServiceMethodAuthMachineCoordinationClusterEnabled
+	HostServiceMethodAuthMachineCoordinationCurrentRevision           = hostservices.HostServiceMethodAuthMachineCoordinationCurrentRevision
+	HostServiceMethodAuthMachineCoordinationMarkChanged               = hostservices.HostServiceMethodAuthMachineCoordinationMarkChanged
+	HostServiceMethodAuthMachineCoordinationConsumeSharedReplay       = hostservices.HostServiceMethodAuthMachineCoordinationConsumeSharedReplay
 	HostServiceMethodUsersCurrent                                     = hostservices.HostServiceMethodUsersCurrent
 	HostServiceMethodUsersBatchGet                                    = hostservices.HostServiceMethodUsersBatchGet
 	HostServiceMethodUsersBatchResolve                                = hostservices.HostServiceMethodUsersBatchResolve
@@ -188,6 +194,7 @@ const (
 	HostServiceMethodPluginsLifecycleEnsureTenantDeleteAllowed        = hostservices.HostServiceMethodPluginsLifecycleEnsureTenantDeleteAllowed
 	HostServiceMethodPluginsLifecycleNotifyTenantDeleted              = hostservices.HostServiceMethodPluginsLifecycleNotifyTenantDeleted
 	HostServiceMethodRouteMetadataGet                                 = hostservices.HostServiceMethodRouteMetadataGet
+	HostServiceMethodRouteMachineAuthorizationsList                   = hostservices.HostServiceMethodRouteMachineAuthorizationsList
 	HostServiceMethodSessionsCurrent                                  = hostservices.HostServiceMethodSessionsCurrent
 	HostServiceMethodSessionsList                                     = hostservices.HostServiceMethodSessionsList
 	HostServiceMethodSessionsBatchGet                                 = hostservices.HostServiceMethodSessionsBatchGet

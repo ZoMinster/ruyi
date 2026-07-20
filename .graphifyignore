@@ -1,0 +1,4 @@
+# Keep generated knowledge graphs scoped to product source and public docs.
+/openspec/
+.*
+/graphify-out/

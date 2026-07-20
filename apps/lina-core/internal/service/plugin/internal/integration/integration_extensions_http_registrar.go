@@ -13,6 +13,7 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"lina-core/pkg/plugin/capability"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -513,6 +514,21 @@ func validateSourceRouteBindings(pluginID string, bindings []pluginhost.SourceRo
 	for _, binding := range bindings {
 		if err := validateSourceRoutePath(pluginID, binding.Path); err != nil {
 			return err
+		}
+		if binding.Documentable {
+			reqObject, ok := newHandlerReqObject(binding.Handler)
+			if !ok {
+				return gerror.Newf("source plugin documentable route request metadata is unavailable: %s", binding.Key())
+			}
+			if _, err := readHandlerRouteAuthorization(
+				reqObject,
+				authcap.RouteOwnerKindSourcePlugin,
+				pluginID,
+				binding.Method,
+				binding.Path,
+			); err != nil {
+				return gerror.Wrapf(err, "source plugin route authorization metadata is invalid: %s", binding.Key())
+			}
 		}
 	}
 	return nil

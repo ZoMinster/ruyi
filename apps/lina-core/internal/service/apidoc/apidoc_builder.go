@@ -44,6 +44,7 @@ func (s *serviceImpl) Build(ctx context.Context, server *ghttp.Server) (*goai.Op
 			return nil, err
 		}
 	}
+	s.projectMachineAuthentication(document.Paths)
 	// Localize first, then derive top-level tags from whatever groups are present
 	// on operations so host and plugins do not need framework-hardcoded orders.
 	s.localizeDocument(ctx, document)
@@ -71,6 +72,15 @@ func (s *serviceImpl) newDocument(ctx context.Context) *goai.OpenApiV3 {
 				Description:  "JWT Bearer Token Authentication",
 				In:           "header",
 				Name:         "Authorization",
+			},
+		},
+		"LinaHMAC": goai.SecuritySchemeRef{
+			Value: &goai.SecurityScheme{
+				Type: "apiKey",
+				Description: "LINA-HMAC-SHA256-V1 request signing with Authorization, " +
+					"X-Lina-Date, X-Lina-Nonce, and X-Lina-Content-SHA256 headers",
+				In:   "header",
+				Name: "Authorization",
 			},
 		},
 	}

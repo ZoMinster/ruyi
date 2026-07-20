@@ -1,0 +1,1 @@
+{"nodes": [{"id": "apps_lina_plugins_linapro_tenant_core_hack_config_tenant_dao_codegen", "label": "Tenant Core DAO Code Generation", "file_type": "concept", "source_file": "apps/lina-plugins/linapro-tenant-core/hack/config.yaml", "source_location": "lines 1-29", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

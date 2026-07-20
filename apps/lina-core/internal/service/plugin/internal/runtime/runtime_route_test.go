@@ -25,10 +25,24 @@ import (
 	rolesvc "lina-core/internal/service/role"
 	"lina-core/internal/service/session"
 	_ "lina-core/pkg/dbdriver"
+	"lina-core/pkg/plugin/capability/authcap"
 	tokencap "lina-core/pkg/plugin/capability/authcap/token"
 	bridgecontract "lina-core/pkg/plugin/pluginbridge/contract"
 	"lina-core/pkg/plugin/pluginhost"
 )
+
+type dynamicMachineDispatcherStub struct {
+	result authcap.AuthenticationResult
+	err    error
+}
+
+func (s dynamicMachineDispatcherStub) Authenticate(
+	context.Context,
+	string,
+	authcap.AuthenticationRequest,
+) (authcap.AuthenticationResult, error) {
+	return s.result, s.err
+}
 
 // TestDynamicRouteEntrypointStaysSlim verifies runtime_route.go stays focused on
 // dispatcher entrypoints instead of regrowing matcher, auth, or envelope logic.
@@ -64,6 +78,82 @@ func TestDynamicRouteEntrypointStaysSlim(t *testing.T) {
 		if !strings.Contains(content, expected.snippet) {
 			t.Fatalf("%s must own split route responsibility %q", expected.file, expected.snippet)
 		}
+	}
+}
+
+// TestDynamicMachineRouteAuthorization verifies dynamic routes apply the same
+// actor plus operation/resource default-deny semantics before guest execution.
+func TestDynamicMachineRouteAuthorization(t *testing.T) {
+	baseResult := authcap.AuthenticationResult{
+		Actor: authcap.Actor{Kind: authcap.ActorKindMachine, SubjectID: "client-1", CredentialID: "key-1", TenantID: 19},
+		Authorization: authcap.NewAuthorizationSnapshot(
+			[]authcap.OperationCode{"records.list"},
+			[]authcap.ResourcePermission{{Resource: "records", Access: authcap.AccessModeRead}},
+		),
+	}
+	testCases := []struct {
+		name           string
+		route          *bridgecontract.RouteContract
+		result         authcap.AuthenticationResult
+		expectedStatus int32
+	}{
+		{
+			name:   "allowed",
+			route:  &bridgecontract.RouteContract{Method: http.MethodGet, Path: "/records", Actors: "user,machine", Operation: "records.list", Resource: "records", Action: "read"},
+			result: baseResult,
+		},
+		{
+			name:           "machine actor not declared",
+			route:          &bridgecontract.RouteContract{Method: http.MethodGet, Path: "/records"},
+			result:         baseResult,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:  "operation denied",
+			route: &bridgecontract.RouteContract{Method: http.MethodGet, Path: "/records", Actors: "machine", Operation: "records.list", Resource: "records", Action: "read"},
+			result: authcap.AuthenticationResult{
+				Actor:         baseResult.Actor,
+				Authorization: authcap.NewAuthorizationSnapshot(nil, []authcap.ResourcePermission{{Resource: "records", Access: authcap.AccessModeRead}}),
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:  "resource denied",
+			route: &bridgecontract.RouteContract{Method: http.MethodGet, Path: "/records", Actors: "machine", Operation: "records.list", Resource: "records", Action: "read"},
+			result: authcap.AuthenticationResult{
+				Actor:         baseResult.Actor,
+				Authorization: authcap.NewAuthorizationSnapshot([]authcap.OperationCode{"records.list"}, nil),
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			service := &serviceImpl{authProviders: dynamicMachineDispatcherStub{result: testCase.result}}
+			request := &ghttp.Request{Request: httptest.NewRequest(http.MethodGet, "http://localhost/x/plugin-demo/records", nil)}
+			request.Header.Set("Authorization", "TEST-MACHINE credential")
+			identity, failure, err := service.buildDynamicRouteIdentitySnapshot(
+				context.Background(),
+				&dynamicRouteMatch{PluginID: "plugin-demo", Route: testCase.route},
+				request,
+			)
+			if err != nil {
+				t.Fatalf("authorize dynamic machine route: %v", err)
+			}
+			if testCase.expectedStatus != 0 {
+				if identity != nil || failure == nil || failure.StatusCode != testCase.expectedStatus {
+					t.Fatalf("expected status %d, identity=%#v failure=%#v", testCase.expectedStatus, identity, failure)
+				}
+				return
+			}
+			if failure != nil || identity == nil {
+				t.Fatalf("expected machine identity, identity=%#v failure=%#v", identity, failure)
+			}
+			if identity.ActorKind != string(authcap.ActorKindMachine) || identity.UserID != 0 || identity.TokenID != "" || identity.TenantId != 19 {
+				t.Fatalf("unexpected machine identity projection: %#v", identity)
+			}
+		})
 	}
 }
 

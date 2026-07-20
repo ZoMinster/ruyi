@@ -1,0 +1,1061 @@
+{
+  "new_nodes": [
+    {
+      "id": "binding",
+      "label": "Binding"
+    },
+    {
+      "id": "operationcode",
+      "label": "OperationCode"
+    },
+    {
+      "id": "resourcegrant",
+      "label": "ResourceGrant"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_go_context",
+      "label": "Context"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_machineauthorizationcatalogue",
+      "label": "MachineAuthorizationCatalogue"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationcatalogue",
+      "label": "MachineAuthorizationCatalogue"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "label": "SetupPostgreSQL()"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_go_t",
+      "label": "T"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_go_currentcontext",
+      "label": "CurrentContext"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testquotepostgresqlidentifier",
+      "label": "TestQuotePostgreSQLIdentifier()"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabaserejectsunsafesourcelink",
+      "label": "TestReplacePostgreSQLDatabaseRejectsUnsafeSourceLink()"
+    },
+    {
+      "id": "replaceauthorizationinput",
+      "label": "ReplaceAuthorizationInput"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres",
+      "label": "postgres.go"
+    },
+    {
+      "id": "ciphertext",
+      "label": "Ciphertext"
+    },
+    {
+      "id": "code",
+      "label": "Code"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_go_currentcontext",
+      "label": "CurrentContext"
+    },
+    {
+      "id": "createoutput",
+      "label": "CreateOutput"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_metadata",
+      "label": "Metadata"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test",
+      "label": "postgres_test.go"
+    },
+    {
+      "id": "tb",
+      "label": "TB"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_replacepostgresqldatabase",
+      "label": "replacePostgreSQLDatabase()"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_machineauthorizationlistinput",
+      "label": "MachineAuthorizationListInput"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_quotepostgresqlidentifier",
+      "label": "quotePostgreSQLIdentifier()"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabase",
+      "label": "TestReplacePostgreSQLDatabase()"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_metadata",
+      "label": "Metadata"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_currentcontext",
+      "label": "CurrentContext"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationlistinput",
+      "label": "MachineAuthorizationListInput"
+    },
+    {
+      "id": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_currentcontext",
+      "label": "CurrentContext"
+    }
+  ],
+  "removed_nodes": [
+    {
+      "id": "eslint_plugin_vue",
+      "label": "eslint-plugin-vue"
+    },
+    {
+      "id": "eslint_plugin_pnpm",
+      "label": "eslint-plugin-pnpm"
+    },
+    {
+      "id": "apps_lina_vben_packages_core_base_design_tsconfig_json_ref_vben_tsconfig_web_json",
+      "label": "@vben/tsconfig/web.json"
+    },
+    {
+      "id": "apps_lina_vben_package_json_ref_turbo",
+      "label": "turbo"
+    },
+    {
+      "id": "apps_lina_vben_package_json_vue",
+      "label": "vue"
+    },
+    {
+      "id": "eslint_plugin_jsonc",
+      "label": "eslint-plugin-jsonc"
+    },
+    {
+      "id": "ref_apps_lina_plugins_hack_tests_support_ts",
+      "label": "../../apps/lina-plugins/*/hack/tests/support/**/*.ts"
+    },
+    {
+      "id": "eslint_plugin_yml",
+      "label": "eslint-plugin-yml"
+    }
+  ],
+  "new_edges": [
+    {
+      "source": "ref_vben_tsconfig_web_app_json",
+      "target": "apps_lina_vben_packages_core_base_design_tsconfig",
+      "relation": "extends",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "eslint_plugin_jsdoc",
+      "target": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_jsonc",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "eslint_plugin_n",
+      "target": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_pnpm",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "eslint_plugin_n",
+      "target": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_vue",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "eslint_plugin_n",
+      "target": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_yml",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_package_keywords",
+      "target": "turbo",
+      "relation": "extends",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "ref_vue",
+      "target": "apps_lina_vben_package_devdependencies_vue",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authprovider_authproviderintegrationbizctx_current",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_currentcontext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authprovider_authproviderintegrationroute_getmetadata",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_metadata",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authprovider_authproviderintegrationroute_listmachineauthorizations",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_machineauthorizationcatalogue",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authprovider_authproviderintegrationroute_listmachineauthorizations",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_go_machineauthorizationlistinput",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_setupauthproviderintegrationdb",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "accesskey_integrationbizctx_current",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_go_currentcontext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "accesskey_recordingcipher",
+      "target": "ciphertext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "ciphertext",
+      "target": "accesskey_recordingcipher_encrypt",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_assertencryptedsecret",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_bytelength",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_cloneciphertext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "accesskey_recordingcipher_encrypt",
+      "target": "binding",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_assertencryptedsecret",
+      "target": "createoutput",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_setupaccesskeyintegrationdb",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "client_integrationbizctx_current",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_go_currentcontext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_setupclientintegrationdb",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "policy_integrationbizctx_current",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_currentcontext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "policy_integrationrouteservice",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationcatalogue",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationcatalogue",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setintegrationresourceactiveread",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationcatalogue",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setintegrationrouteactive",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationcatalogue",
+      "target": "policy_integrationrouteservice_listmachineauthorizations",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "policy_integrationrouteservice_getmetadata",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_metadata",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "policy_integrationrouteservice_listmachineauthorizations",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_machineauthorizationlistinput",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyservicepostgresqllifecycleandauthorization",
+      "target": "operationcode",
+      "relation": "calls",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertauthorizationrejected",
+      "target": "code",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertauthorizationrejected",
+      "target": "replaceauthorizationinput",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertpolicyauthorization",
+      "target": "operationcode",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertpolicyauthorization",
+      "target": "resourcegrant",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setuppolicyintegrationdb",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_quotepostgresqlidentifier",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_replacepostgresqldatabase",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_go_context",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_quotepostgresqlidentifier",
+      "relation": "calls",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_replacepostgresqldatabase",
+      "relation": "calls",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_setuppostgresql",
+      "target": "tb",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_replacepostgresqldatabase",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabase",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_replacepostgresqldatabase",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabaserejectsunsafesourcelink",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_quotepostgresqlidentifier",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testquotepostgresqlidentifier",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testquotepostgresqlidentifier",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabase",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabaserejectsunsafesourcelink",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabase",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_go_t",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_go_t",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testquotepostgresqlidentifier",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_go_t",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_postgres_test_testreplacepostgresqldatabaserejectsunsafesourcelink",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    }
+  ],
+  "removed_edges": [
+    {
+      "source": "apps_lina_core_internal_service_plugin_internal_datahost_internal_host_host_db_db",
+      "target": "apps_lina_core_internal_service_plugin_internal_datahost_internal_host_host_db_db",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "frontend_bundlefs_readfile",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_setupauthproviderintegrationdb",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "frontend_bundlefs_readfile",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_setupaccesskeyintegrationdb",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "frontend_bundlefs_readfile",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_setupclientintegrationdb",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "frontend_bundlefs_readfile",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setuppolicyintegrationdb",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_bizerr_bizerr_code_metadata",
+      "target": "authprovider_authproviderintegrationroute_getmetadata",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_core_pkg_bizerr_bizerr_code_metadata",
+      "target": "policy_integrationrouteservice_getmetadata",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_core_pkg_logger_logger_logger",
+      "target": "apps_lina_core_pkg_logger_logger_logger",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authcap_operationcode",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertpolicyauthorization",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "authcap_operationcode",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyservicepostgresqllifecycleandauthorization",
+      "relation": "calls",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_authcap_authcap_route_authorization_parserouteauthorization",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_policyroutecatalogue",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_authcap_authcap_route_authorization_newrouteauthorizationcatalogue",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_policyroutecatalogue",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "bizctxcap_currentcontext",
+      "target": "accesskey_integrationbizctx_current",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "bizctxcap_currentcontext",
+      "target": "authprovider_authproviderintegrationbizctx_current",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "bizctxcap_currentcontext",
+      "target": "client_integrationbizctx_current",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "bizctxcap_currentcontext",
+      "target": "policy_integrationbizctx_current",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_accesskeyusercontext",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicepostgresqllifecycle",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_testclientservicepostgresqllifecycleandtenantboundary",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_usercontext",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_policyusercontext",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_withcurrentcontext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyservicepostgresqllifecycleandauthorization",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_currentfromcontext",
+      "target": "accesskey_integrationbizctx_current",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_currentfromcontext",
+      "target": "authprovider_authproviderintegrationbizctx_current",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_currentfromcontext",
+      "target": "client_integrationbizctx_current",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_core_pkg_plugin_capability_bizctxcap_bizctxcap_currentfromcontext",
+      "target": "policy_integrationbizctx_current",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "routecap_machineauthorizationlistinput",
+      "target": "authprovider_authproviderintegrationroute_listmachineauthorizations",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationlistinput",
+      "target": "policy_integrationrouteservice_listmachineauthorizations",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationcatalogue",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setintegrationresourceactiveread",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationcatalogue",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_setintegrationrouteactive",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationcatalogue",
+      "target": "authprovider_authproviderintegrationroute_listmachineauthorizations",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationcatalogue",
+      "target": "policy_integrationrouteservice",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "routecap_machineauthorizationcatalogue",
+      "target": "policy_integrationrouteservice_listmachineauthorizations",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "domainhostcall_runtimeservice_now",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_runtimeservice_now",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicepostgresqllifecycle",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_runtimeservice_now",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_testclientservicepostgresqllifecycleandtenantboundary",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_noprogressreader_read",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_uniqueauthprovidertenant",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_noprogressreader_read",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_uniqueaccesskeytesttenant",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_noprogressreader_read",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_uniqueclienttesttenant",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "domainhostcall_noprogressreader_read",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_uniquepolicytesttenant",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_ai_core_backend_cap_aicap_bridge_bridge_hostservicespec",
+      "target": "apps_lina_plugins_linapro_ai_core_backend_cap_aicap_bridge_bridge_hostservicespec",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_mustauthprovidersecurityrecorder",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_mustauthproviderusagerecorder",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_cache_newversionedsnapshotstore",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_newdatabasesnapshotstore",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_test_signedprovidertestrequest",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_testdatabasesnapshotstoreandproviderpostgresql",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_authprovider_authprovider_store_integration_test_mustauthproviderusagerecorder",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_lastused_lastused_newdatabaseupdater",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "secretcrypto_ciphertext",
+      "target": "accesskey_recordingcipher",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "secretcrypto_ciphertext",
+      "target": "accesskey_recordingcipher_encrypt",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "secretcrypto_ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_assertencryptedsecret",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "secretcrypto_ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_bytelength",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "secretcrypto_ciphertext",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_cloneciphertext",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_secretcrypto_secretcrypto_newunavailable",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicerejectscreatewithoutmasterkey",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyserviceconcurrentcreatehonorslimit",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicepostgresqllifecycle",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicerejectscreatewithoutmasterkey",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_impl_getkeyrow",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicepostgresqllifecycle",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "accesskey_recordingcipher_encrypt",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_go_binding",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicepostgresqllifecycle",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyservicerejectscreatewithoutmasterkey",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_testaccesskeyserviceconcurrentcreatehonorslimit",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_assertencryptedsecret",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_accesskey_accesskey_integration_test_go_createoutput",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_testclientservicepostgresqllifecycleandtenantboundary",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test_testclientservicepostgresqllifecycleandtenantboundary",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "policy_replaceauthorizationinput",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertauthorizationrejected",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyserviceconcurrentassignmenthonorsclientlimit",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_new",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyservicepostgresqllifecycleandauthorization",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyservicepostgresqllifecycleandauthorization",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_testpolicyserviceconcurrentassignmenthonorsclientlimit",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_testsupport_machinecoord_newmachinecoordination",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertauthorizationrejected",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_code",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_assertpolicyauthorization",
+      "target": "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_policy_policy_integration_test_go_resourcegrant",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_plugins_linapro_tenant_core_backend_internal_service_shared_shared_model",
+      "target": "apps_lina_plugins_linapro_tenant_core_backend_internal_service_shared_shared_model",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "relation": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_jsonc",
+      "target": "eslint_plugin_jsonc",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_pnpm",
+      "target": "eslint_plugin_pnpm",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_vue",
+      "target": "eslint_plugin_vue",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_internal_lint_configs_eslint_config_package_devdependencies_eslint_plugin_yml",
+      "target": "eslint_plugin_yml",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_package_keywords",
+      "target": "apps_lina_vben_package_json_ref_turbo",
+      "relation": "extends",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_package_devdependencies_vue",
+      "target": "apps_lina_vben_package_json_vue",
+      "relation": "imports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_base_design_tsconfig",
+      "target": "apps_lina_vben_packages_core_base_design_tsconfig_json_ref_vben_tsconfig_web_json",
+      "relation": "extends",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_layout_ui_src_vben_layout_vue_apps_lina_vben_packages_core_ui_kit_layout_ui_src_vben_layout",
+      "target": "apps_lina_vben_packages_core_ui_kit_layout_ui_src_vben_layout_vue_apps_lina_vben_packages_core_ui_kit_layout_ui_src_vben_layout",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_menu_ui_src_components_normal_menu_normal_menu_vue_apps_lina_vben_packages_core_ui_kit_menu_ui_src_components_normal_menu_normal_menu",
+      "target": "apps_lina_vben_packages_core_ui_kit_menu_ui_src_components_normal_menu_normal_menu_vue_apps_lina_vben_packages_core_ui_kit_menu_ui_src_components_normal_menu_normal_menu",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_menu_ui_src_sub_menu",
+      "target": "apps_lina_vben_packages_core_ui_kit_menu_ui_src_sub_menu",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_alert_alert_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_alert_alert",
+      "target": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_alert_alert_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_alert_alert",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_drawer_drawer_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_drawer_drawer",
+      "target": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_drawer_drawer_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_drawer_drawer",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_modal_modal_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_modal_modal",
+      "target": "apps_lina_vben_packages_core_ui_kit_popup_ui_src_modal_modal_vue_apps_lina_vben_packages_core_ui_kit_popup_ui_src_modal_modal",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_components_button_button_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_components_button_button",
+      "target": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_components_button_button_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_components_button_button",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_avatar_avatar_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_avatar_avatar",
+      "target": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_avatar_avatar_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_avatar_avatar",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_badge_badge_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_badge_badge",
+      "target": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_badge_badge_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_badge_badge",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_button_button_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_button_button",
+      "target": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_button_button_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_button_button",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_toggle_toggle_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_toggle_toggle",
+      "target": "apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_toggle_toggle_vue_apps_lina_vben_packages_core_ui_kit_shadcn_ui_src_ui_toggle_toggle",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_effects_common_ui_src_components_json_viewer_index_ts_apps_lina_vben_packages_effects_common_ui_src_components_json_viewer_index",
+      "target": "apps_lina_vben_packages_effects_common_ui_src_components_json_viewer_index_ts_apps_lina_vben_packages_effects_common_ui_src_components_json_viewer_index",
+      "relation": "re_exports",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_effects_common_ui_src_ui_about_about_vue_apps_lina_vben_packages_effects_common_ui_src_ui_about_about",
+      "target": "apps_lina_vben_packages_effects_common_ui_src_ui_about_about_vue_apps_lina_vben_packages_effects_common_ui_src_ui_about_about",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_effects_common_ui_src_ui_fallback_fallback_vue_apps_lina_vben_packages_effects_common_ui_src_ui_fallback_fallback",
+      "target": "apps_lina_vben_packages_effects_common_ui_src_ui_fallback_fallback_vue_apps_lina_vben_packages_effects_common_ui_src_ui_fallback_fallback",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "apps_lina_vben_packages_effects_plugins_src_vxe_table_use_vxe_grid_ts_apps_lina_vben_packages_effects_plugins_src_vxe_table_use_vxe_grid",
+      "target": "apps_lina_vben_packages_effects_plugins_src_vxe_table_use_vxe_grid_ts_apps_lina_vben_packages_effects_plugins_src_vxe_table_use_vxe_grid",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "hack_tests_tsconfig_include",
+      "target": "ref_apps_lina_plugins_hack_tests_support_ts",
+      "relation": "extends",
+      "confidence": "EXTRACTED"
+    }
+  ],
+  "summary": "28 new nodes, 52 new edges, 8 nodes removed, 99 edges removed"
+}

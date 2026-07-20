@@ -18,6 +18,7 @@ import (
 	"lina-core/internal/model"
 	"lina-core/internal/model/do"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 )
 
 // TestCurrentResolvesWidestScope verifies super-admin, enabled-role merging,
@@ -215,6 +216,8 @@ func (s dataScopeStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by data-scope tests.
 func (s dataScopeStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s dataScopeStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by data-scope tests.
 func (s dataScopeStaticBizCtx) SetTenant(context.Context, int) {}

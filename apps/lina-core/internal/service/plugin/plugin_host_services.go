@@ -15,7 +15,9 @@ import (
 	"lina-core/internal/service/apidoc"
 	"lina-core/internal/service/auth"
 	"lina-core/internal/service/cachecoord"
+	"lina-core/internal/service/cluster"
 	configsvc "lina-core/internal/service/config"
+	"lina-core/internal/service/coordination"
 	"lina-core/internal/service/datascope"
 	filesvc "lina-core/internal/service/file"
 	"lina-core/internal/service/hostlock"
@@ -34,6 +36,7 @@ import (
 	"lina-core/pkg/dialect"
 	"lina-core/pkg/logger"
 	"lina-core/pkg/plugin/capability"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/hostconfigcap"
@@ -59,6 +62,8 @@ type PluginConfigFactory = pluginconfig.Factory
 type pluginStateLookup interface {
 	// IsEnabled reports whether one plugin is enabled in the current scope.
 	IsEnabled(ctx context.Context, pluginID string) bool
+	// ResolveBusinessEntryEnablement resolves a bounded plugin set without N+1 reads.
+	ResolveBusinessEntryEnablement(ctx context.Context, pluginIDs []string) (map[string]bool, error)
 	// IsProviderEnabled reports whether one plugin may serve provider calls.
 	IsProviderEnabled(ctx context.Context, pluginID string) bool
 	// IsEnabledAuthoritative reports persisted plugin enablement bypassing local snapshots.
@@ -119,8 +124,11 @@ func NewHostServices(
 	hostConfigSvc hostconfigcap.Service,
 	scopeSvc datascope.Service,
 	cacheCoordSvc cachecoord.Service,
+	clusterSvc cluster.Service,
+	coordinationSvc coordination.Service,
 	i18nSvc i18nsvc.Service,
 	pluginStateSvc pluginStateLookup,
+	routeAuthorizations authcap.RouteAuthorizationCatalogue,
 	pluginLifecycleSvc plugincap.LifecycleService,
 	userSvc usersvc.Service,
 	fileSvc filesvc.Service,
@@ -142,8 +150,11 @@ func NewHostServices(
 		hostConfigSvc,
 		scopeSvc,
 		cacheCoordSvc,
+		clusterSvc,
+		coordinationSvc,
 		i18nSvc,
 		pluginStateSvc,
+		routeAuthorizations,
 		pluginLifecycleSvc,
 		userSvc,
 		fileSvc,

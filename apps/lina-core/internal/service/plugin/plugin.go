@@ -40,6 +40,8 @@ import (
 	"lina-core/internal/model/entity"
 
 	"lina-core/pkg/plugin/capability"
+	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/hostconfigcap"
 	"lina-core/pkg/plugin/pluginhost"
@@ -309,6 +311,9 @@ type runtimeHTTPService interface {
 	StartRuntimeReconciler(ctx context.Context)
 	// ReconcileRuntimePlugins runs one reconciliation pass for all dynamic plugins.
 	ReconcileRuntimePlugins(ctx context.Context) error
+	// SyncDynamicRouteAuthorizations rebuilds installed dynamic route metadata in
+	// the shared global authorization catalog.
+	SyncDynamicRouteAuthorizations(ctx context.Context) error
 	// PrepareDynamicRouteMiddleware prepares dynamic route state before the main handler.
 	PrepareDynamicRouteMiddleware(r *ghttp.Request)
 	// AuthenticateDynamicRouteMiddleware authenticates JWT tokens for dynamic routes.
@@ -332,6 +337,7 @@ type integrationService interface {
 	RegisterJobs(ctx context.Context) error
 	// RegisterSourcePluginProviderFactories registers source-plugin provider declarations into shared managers.
 	RegisterSourcePluginProviderFactories(
+		authenticationManager *authspi.Manager,
 		tenantManager *tenantspi.Manager,
 		orgManager *orgspi.Manager,
 		externalIdentityManager *extidspi.Manager,
@@ -380,6 +386,9 @@ type stateService interface {
 	IsInstalled(ctx context.Context, pluginID string) bool
 	// IsEnabled returns whether a plugin is enabled.
 	IsEnabled(ctx context.Context, pluginID string) bool
+	// ResolveBusinessEntryEnablement resolves a bounded plugin set through one
+	// shared registry and tenant-state snapshot.
+	ResolveBusinessEntryEnablement(ctx context.Context, pluginIDs []string) (map[string]bool, error)
 	// IsProviderEnabled returns whether pluginID is platform-enabled for framework capability provider use.
 	IsProviderEnabled(ctx context.Context, pluginID string) bool
 	// IsEnabledAuthoritative returns whether pluginID is installed, enabled, and
@@ -392,6 +401,8 @@ type stateService interface {
 
 // capabilityEnvService defines provider construction inputs scoped to one plugin.
 type capabilityEnvService interface {
+	// AuthenticationProviderEnv returns host-stamped machine-authentication provider construction inputs.
+	AuthenticationProviderEnv(ctx context.Context, pluginID string) authspi.ProviderEnv
 	// OrgProviderEnv returns typed, plugin-scoped organization-provider construction inputs.
 	OrgProviderEnv(ctx context.Context, pluginID string) orgspi.ProviderEnv
 	// TenantProviderEnv returns typed, plugin-scoped tenant-provider construction inputs.
@@ -505,6 +516,8 @@ func New(
 	tenantSvc tenantspi.Service,
 	pluginConfigFactory PluginConfigFactory,
 	hostConfigSvc hostconfigcap.Service,
+	authProviders authspi.Dispatcher,
+	routeAuthorizations authcap.RouteAuthorizationCatalogue,
 ) (Service, error) {
 	if configProvider == nil {
 		return nil, gerror.New("plugin service requires a non-nil config service")
@@ -535,6 +548,12 @@ func New(
 	}
 	if tenantSvc == nil {
 		return nil, gerror.New("plugin service requires a non-nil tenant service")
+	}
+	if routeAuthorizations == nil {
+		return nil, gerror.New("plugin service requires a non-nil route authorization catalog")
+	}
+	if authProviders == nil {
+		return nil, gerror.New("plugin service requires a non-nil authentication provider dispatcher")
 	}
 	ownerCapabilities, err := buildSourceCapabilityRegistry()
 	if err != nil {
@@ -585,6 +604,8 @@ func New(
 		dependencyValidator,
 		capabilityServices,
 		wasmRuntime,
+		authProviders,
+		routeAuthorizations,
 	)
 	integrationSvc := integration.New(
 		catalogSvc,

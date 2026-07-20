@@ -37,6 +37,10 @@ func Run(ctx context.Context) error {
 		logger.Errorf(startupCtx, "register plugin routes failed: %v", err)
 		return err
 	}
+	if err = syncHTTPRouteAuthorizations(startupCtx, server, runtime); err != nil {
+		logger.Errorf(startupCtx, "audit route authorization metadata failed: %v", err)
+		return err
+	}
 	if err = finishHTTPRuntimeAfterSourceRoutes(startupCtx, runtime); err != nil {
 		return err
 	}

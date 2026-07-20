@@ -110,6 +110,10 @@ func cloneRouteContracts(in []*protocol.RouteContract) []*protocol.RouteContract
 			Description: item.Description,
 			Access:      item.Access,
 			Permission:  item.Permission,
+			Operation:   item.Operation,
+			Resource:    item.Resource,
+			Action:      item.Action,
+			Actors:      item.Actors,
 			Meta:        cloneStringMap(item.Meta),
 			RequestType: item.RequestType,
 		})

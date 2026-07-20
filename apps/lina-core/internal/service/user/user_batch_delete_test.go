@@ -17,6 +17,7 @@ import (
 	"lina-core/internal/model/do"
 	"lina-core/internal/model/entity"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/capmodel"
 	"lina-core/pkg/plugin/capability/orgcap"
@@ -295,6 +296,8 @@ func (s userDeleteStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by delete tests.
 func (s userDeleteStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s userDeleteStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by delete tests.
 func (s userDeleteStaticBizCtx) SetTenant(context.Context, int) {}

@@ -16,6 +16,7 @@ import (
 	"lina-core/internal/model/entity"
 	storagesvc "lina-core/internal/service/storage"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 )
 
@@ -35,7 +36,6 @@ func (s *fakeAccessStorage) Get(_ context.Context, in storagesvc.GetInput) (*sto
 		Found:  true,
 	}, nil
 }
-
 
 // TestOpenByPathRejectsParentTraversalWithoutStorageAccess verifies unsafe URL
 // path segments are rejected before metadata lookup or storage access.
@@ -155,6 +155,8 @@ func (s fileAccessStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by file service tests.
 func (s fileAccessStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s fileAccessStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by file service tests.
 func (s fileAccessStaticBizCtx) SetTenant(context.Context, int) {}

@@ -80,6 +80,16 @@ const (
 	HostServiceMethodAuthzIsPlatformAdmin = "authz.users.platform_admin.check"
 	// HostServiceMethodAuthzReplaceRolePermissions is the catalog wire value for method "authz.role_permissions.replace".
 	HostServiceMethodAuthzReplaceRolePermissions = "authz.role_permissions.replace"
+	// HostServiceMethodAuthMachineCoordinationConfigure configures the machine-access coordination domain.
+	HostServiceMethodAuthMachineCoordinationConfigure = "machine_coordination.configure"
+	// HostServiceMethodAuthMachineCoordinationClusterEnabled reports whether shared coordination is mandatory.
+	HostServiceMethodAuthMachineCoordinationClusterEnabled = "machine_coordination.cluster_enabled"
+	// HostServiceMethodAuthMachineCoordinationCurrentRevision reads one tenant revision.
+	HostServiceMethodAuthMachineCoordinationCurrentRevision = "machine_coordination.revision.current"
+	// HostServiceMethodAuthMachineCoordinationMarkChanged advances one tenant revision.
+	HostServiceMethodAuthMachineCoordinationMarkChanged = "machine_coordination.revision.mark_changed"
+	// HostServiceMethodAuthMachineCoordinationConsumeSharedReplay atomically consumes one replay digest.
+	HostServiceMethodAuthMachineCoordinationConsumeSharedReplay = "machine_coordination.replay.consume_shared"
 	// HostServiceMethodBizCtxCurrent is the catalog wire value for method "current.get".
 	HostServiceMethodBizCtxCurrent = "current.get"
 	// HostServiceMethodCacheDelete is the catalog wire value for method "delete".
@@ -286,6 +296,9 @@ const (
 	HostServiceMethodPluginsStateIsProviderEnabled = "plugins.state.provider_enabled.check"
 	// HostServiceMethodRouteMetadataGet is the catalog wire value for method "metadata.get".
 	HostServiceMethodRouteMetadataGet = "metadata.get"
+	// HostServiceMethodRouteMachineAuthorizationsList is the catalog wire value
+	// for method "machine_authorizations.list".
+	HostServiceMethodRouteMachineAuthorizationsList = "machine_authorizations.list"
 	// HostServiceMethodRuntimeInfoNode is the catalog wire value for method "info.node".
 	HostServiceMethodRuntimeInfoNode = "info.node"
 	// HostServiceMethodRuntimeInfoNow is the catalog wire value for method "info.now".

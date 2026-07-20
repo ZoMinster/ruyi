@@ -162,6 +162,10 @@ func cloneRouteContracts(routes []*bridgecontract.RouteContract) []*bridgecontra
 			Description: route.Description,
 			Access:      route.Access,
 			Permission:  route.Permission,
+			Operation:   route.Operation,
+			Resource:    route.Resource,
+			Action:      route.Action,
+			Actors:      route.Actors,
 			Meta:        cloneStringMap(route.Meta),
 			RequestType: route.RequestType,
 		})

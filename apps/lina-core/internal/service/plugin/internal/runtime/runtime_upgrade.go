@@ -58,7 +58,13 @@ func (s *serviceImpl) UpgradeDynamicPluginRequest(ctx context.Context, pluginID 
 	}
 
 	desiredState := store.BuildStableHostState(registry)
+	if err = s.validateDynamicRouteAuthorizationCandidate(desiredManifest); err != nil {
+		return err
+	}
 	return s.reconcilePrimaryPluginWithRequiredLock(ctx, registry, func(lockCtx context.Context, lockedRegistry *store.PluginRecord) error {
-		return s.applyUpgrade(lockCtx, lockedRegistry, desiredManifest, desiredState)
+		if applyErr := s.applyUpgrade(lockCtx, lockedRegistry, desiredManifest, desiredState); applyErr != nil {
+			return applyErr
+		}
+		return s.syncDynamicRouteAuthorizationForPlugin(lockCtx, normalizedPluginID)
 	})
 }

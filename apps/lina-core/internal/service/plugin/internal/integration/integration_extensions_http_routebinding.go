@@ -12,6 +12,7 @@ import (
 	"github.com/gogf/gf/v2/util/gmeta"
 	"github.com/gogf/gf/v2/util/gtag"
 
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -54,8 +55,10 @@ func captureFunctionRouteBinding(
 		routePath    = normalizeRoutePattern(explicitPattern)
 		methods      = expandRouteMethods(explicitMethod)
 		documentable = isDocumentableHandler(handler)
+		reqObject    interface{}
 	)
 	if documentable {
+		reqObject, _ = newHandlerReqObject(handler)
 		if reqMetaPath, ok := readHandlerMetaPath(handler); ok {
 			routePath = normalizeRoutePattern(reqMetaPath)
 		}
@@ -70,15 +73,61 @@ func captureFunctionRouteBinding(
 	finalPath := joinRoutePatterns(prefix, routePath)
 	bindings := make([]pluginhost.SourceRouteBinding, 0, len(methods))
 	for _, method := range methods {
+		authorization, err := readHandlerRouteAuthorization(
+			reqObject,
+			authcap.RouteOwnerKindSourcePlugin,
+			pluginID,
+			method,
+			finalPath,
+		)
+		if err != nil {
+			authorization = authcap.RouteAuthorization{
+				OwnerKind: authcap.RouteOwnerKindSourcePlugin,
+				OwnerID:   strings.TrimSpace(pluginID),
+				Method:    normalizeRouteMethod(method),
+				Path:      finalPath,
+			}
+		}
 		bindings = append(bindings, pluginhost.SourceRouteBinding{
-			PluginID:     strings.TrimSpace(pluginID),
-			Method:       normalizeRouteMethod(method),
-			Path:         finalPath,
-			Handler:      handler,
-			Documentable: documentable,
+			PluginID:      strings.TrimSpace(pluginID),
+			Method:        normalizeRouteMethod(method),
+			Path:          finalPath,
+			Handler:       handler,
+			Documentable:  documentable,
+			Authorization: authorization,
 		})
 	}
 	return bindings
+}
+
+// readHandlerRouteAuthorization parses machine route metadata from one request
+// DTO. The caller retains the returned error through validation of the same raw
+// tags, so capture itself remains side-effect free.
+func readHandlerRouteAuthorization(
+	reqObject interface{},
+	ownerKind authcap.RouteOwnerKind,
+	ownerID string,
+	method string,
+	path string,
+) (authcap.RouteAuthorization, error) {
+	return authcap.ParseRouteAuthorization(
+		ownerKind,
+		ownerID,
+		method,
+		path,
+		readRouteMeta(reqObject, "operation"),
+		readRouteMeta(reqObject, "resource"),
+		readRouteMeta(reqObject, "action"),
+		readRouteMeta(reqObject, "actors"),
+	)
+}
+
+// readRouteMeta reads one custom GoFrame metadata tag from a request DTO.
+func readRouteMeta(reqObject interface{}, name string) string {
+	if reqObject == nil {
+		return ""
+	}
+	return strings.TrimSpace(gmeta.Get(reqObject, name).String())
 }
 
 // captureObjectRouteBindings expands one controller object into per-method

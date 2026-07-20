@@ -30,6 +30,7 @@ import (
 	"lina-core/internal/service/session"
 	"lina-core/internal/service/startupstats"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
@@ -205,6 +206,8 @@ func TestNewRequiresInjectedTenantService(t *testing.T) {
 		nil,
 		NewPluginConfigFactory("", ""),
 		NewHostConfigService(configProvider),
+		nil,
+		authcap.NewRouteAuthorizationCatalogue(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "tenant service") {
 		t.Fatalf("expected tenant service dependency error, got %v", err)

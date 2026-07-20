@@ -97,6 +97,13 @@ func (testNoopRoute) GetMetadata(context.Context) *routecap.Metadata {
 	return nil
 }
 
+func (testNoopRoute) ListMachineAuthorizations(
+	context.Context,
+	routecap.MachineAuthorizationListInput,
+) (*routecap.MachineAuthorizationCatalogue, error) {
+	return &routecap.MachineAuthorizationCatalogue{}, nil
+}
+
 type testNoopFiles struct{}
 
 func (testNoopFiles) BatchGet(_ context.Context, ids []capabilityfilecap.FileID) (*capmodel.BatchResult[*capabilityfilecap.FileInfo, capabilityfilecap.FileID], error) {

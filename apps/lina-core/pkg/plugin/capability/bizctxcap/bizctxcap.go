@@ -2,7 +2,11 @@
 
 package bizctxcap
 
-import "context"
+import (
+	"context"
+
+	"lina-core/pkg/plugin/capability/authcap"
+)
 
 // Service defines the business-context operations published to source plugins.
 type Service interface {
@@ -12,6 +16,8 @@ type Service interface {
 
 // CurrentContext is the plugin-visible read-only business context snapshot.
 type CurrentContext struct {
+	// Actor is the host-trusted user or machine principal projection.
+	Actor authcap.Actor
 	// TokenID is the authenticated token or online-session identifier bound to the request context.
 	TokenID string
 	// UserID is the authenticated user identifier bound to the request context.
@@ -49,7 +55,21 @@ func WithCurrentContext(ctx context.Context, current CurrentContext) context.Con
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if current.TenantID == 0 {
+	if current.Actor.Kind == authcap.ActorKindMachine {
+		current.Actor.TenantID = current.TenantID
+		current.TokenID = ""
+		current.UserID = 0
+		current.Username = ""
+		current.ActingUserID = 0
+		current.ActingAsTenant = false
+		current.IsImpersonation = false
+		current.Permissions = nil
+		current.DataScope = 0
+		current.DataScopeUnsupported = false
+		current.UnsupportedDataScope = 0
+		current.IsSuperAdmin = false
+		current.PlatformBypass = false
+	} else if current.TenantID == 0 {
 		current.PlatformBypass = true
 	}
 	current.Permissions = cloneStrings(current.Permissions)

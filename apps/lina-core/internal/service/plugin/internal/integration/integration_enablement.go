@@ -24,6 +24,10 @@ import (
 // registry reads that must ignore process-local enablement snapshots.
 type authoritativeEnablementContextKey struct{}
 
+// tenantPluginEnablementSnapshotContextKey stores one request-scoped batch of
+// tenant plugin states so business-entry projection does not query per plugin.
+type tenantPluginEnablementSnapshotContextKey struct{}
+
 // isEnabled reports whether the plugin with the given ID is currently enabled.
 func (r *filterRuntime) isEnabled(pluginID string) bool {
 	if r == nil {
@@ -60,6 +64,48 @@ func (s *serviceImpl) CanExposeBusinessEntries(ctx context.Context, pluginID str
 	manifest, _ := s.catalogSvc.GetDesiredManifest(normalizedPluginID)
 	enabled, err := s.registryBusinessEntryEnabledForTenant(ctx, registry, manifest)
 	return err == nil && enabled
+}
+
+// ResolveBusinessEntryEnablement resolves requested plugin states through one
+// manifest scan, registry snapshot, and tenant-state batch query.
+func (s *serviceImpl) ResolveBusinessEntryEnablement(
+	ctx context.Context,
+	pluginIDs []string,
+) (map[string]bool, error) {
+	requested := make(map[string]struct{}, len(pluginIDs))
+	result := make(map[string]bool, len(pluginIDs))
+	for _, pluginID := range pluginIDs {
+		normalizedID := strings.TrimSpace(pluginID)
+		if normalizedID == "" {
+			continue
+		}
+		requested[normalizedID] = struct{}{}
+		result[normalizedID] = false
+	}
+	if len(requested) == 0 {
+		return result, nil
+	}
+	manifests, err := s.catalogSvc.ScanManifests()
+	if err != nil {
+		return nil, err
+	}
+	selected := make([]*catalog.Manifest, 0, len(requested))
+	for _, manifest := range manifests {
+		if manifest == nil {
+			continue
+		}
+		if _, ok := requested[strings.TrimSpace(manifest.ID)]; ok {
+			selected = append(selected, manifest)
+		}
+	}
+	enabledByID, err := s.buildEnabledPluginMapFromCatalog(ctx, selected, true)
+	if err != nil {
+		return nil, err
+	}
+	for pluginID, enabled := range enabledByID {
+		result[pluginID] = enabled
+	}
+	return result, nil
 }
 
 // IsProviderEnabled reports whether pluginID is platform-enabled for framework
@@ -168,6 +214,9 @@ func (s *serviceImpl) registryBusinessEntryEnabledForTenant(
 
 // tenantPluginEnabled reads one tenant-scoped plugin enablement row.
 func (s *serviceImpl) tenantPluginEnabled(ctx context.Context, pluginID string, tenantID int) (bool, error) {
+	if snapshot, ok := ctx.Value(tenantPluginEnablementSnapshotContextKey{}).(map[string]bool); ok {
+		return snapshot[strings.TrimSpace(pluginID)], nil
+	}
 	value, err := dao.SysPluginState.Ctx(ctx).
 		Where(do.SysPluginState{
 			PluginId: strings.TrimSpace(pluginID),
@@ -182,6 +231,41 @@ func (s *serviceImpl) tenantPluginEnabled(ctx context.Context, pluginID string, 
 		return false, nil
 	}
 	return value.Bool(), nil
+}
+
+// withTenantPluginEnablementSnapshot loads all requested tenant states in one
+// query and stores default-false entries in the returned context.
+func (s *serviceImpl) withTenantPluginEnablementSnapshot(
+	ctx context.Context,
+	pluginIDs []string,
+) (context.Context, error) {
+	tenantID := datascope.CurrentTenantID(ctx)
+	if tenantID == datascope.PlatformTenantID || len(pluginIDs) == 0 {
+		return ctx, nil
+	}
+	type tenantStateRow struct {
+		PluginId string `json:"pluginId" orm:"plugin_id"`
+		Enabled  bool   `json:"enabled" orm:"enabled"`
+	}
+	states := make(map[string]bool, len(pluginIDs))
+	for _, pluginID := range pluginIDs {
+		if normalizedID := strings.TrimSpace(pluginID); normalizedID != "" {
+			states[normalizedID] = false
+		}
+	}
+	rows := make([]tenantStateRow, 0, len(states))
+	columns := dao.SysPluginState.Columns()
+	if err := dao.SysPluginState.Ctx(ctx).
+		Fields(columns.PluginId, columns.Enabled).
+		Where(do.SysPluginState{TenantId: tenantID, StateKey: pluginTenantEnablementStateKey}).
+		WhereIn(columns.PluginId, pluginIDs).
+		Scan(&rows); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		states[strings.TrimSpace(row.PluginId)] = row.Enabled
+	}
+	return context.WithValue(ctx, tenantPluginEnablementSnapshotContextKey{}, states), nil
 }
 
 // pluginTenantEnablementStateValue converts one enablement flag to the stable
@@ -316,6 +400,10 @@ func (s *serviceImpl) buildEnabledPluginMapFromCatalog(
 	}
 
 	readCtx, err := s.storeSvc.WithStartupDataSnapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	readCtx, err = s.withTenantPluginEnablementSnapshot(readCtx, pluginIDs)
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ plugin-owned 非核心能力不归属`capability.Services`。owner 插件在`app
 | `Jobs` | 读取定时任务元数据、搜索有界任务候选、校验任务可见性，并执行受治理的运行期任务动作。 | 声明期任务契约通过`pluginbridge.Declarations.Jobs().Register(...)`提交；运行期服务不暴露`Register`。 |
 | `Notifications` | 列表和读取类型化通知消息投影、按业务来源批量读取消息、校验可见性、删除消息、更新已读状态并发送受治理通知。 | actor 作用域的读取、删除和已读状态调用不需要资源声明；`messages.send`需要`resources[].ref`边界。 |
 | `Plugins` | 暴露当前插件投影、插件注册表投影、租户插件分页、插件启用状态、provider 启用状态、插件作用域配置和受治理插件生命周期编排。 | 运行期检查插件可见性、插件启用/provider 状态、插件作用域配置来源隔离、生命周期前置条件，以及已发布治理方法的动态`hostServices`授权。 |
-| `Route` | 暴露当前执行的动态路由元数据。 | 用于运行期路由分发，不暴露宿主 router 内部实现。 |
+| `Route` | 暴露当前执行的动态路由元数据，以及机器接口与资源整体读写模式的有界只读目录。 | 宿主从同一共享目录投影稳定声明，批量解析插件 owner 状态；禁用路由仅标记为非 active 而不删除，并通过`host:route`向动态插件提供同一契约。 |
 | `Sessions` | 读取当前在线会话投影、搜索在线会话、批量读取在线会话投影、校验会话可见性，并批量读取用户在线状态。 | 宿主校验保持会话和用户可见性在调用方边界内。 |
 | `Storage` | 提供插件私有对象存储操作，用于插件自有附件、业务二进制对象、导入导出临时文件和卸载清理，并支持显式批量元数据、游标列表和批量删除。 | 源码插件通过`pluginhost`输入中的`capability.Services`获得插件作用域`Storage()`；动态声明使用`service: storage`和`resources.paths`；写入不会创建`sys_file`记录，也不会暴露 provider key 或本地路径。 |
 | `Cache` | 提供插件作用域缓存读取、写入、删除、多键读取/写入/删除、自增和过期操作。 | 动态声明使用`resources[].ref`；运行期分发校验 namespace、key、value 大小和正 TTL 载荷。缓存仍是非权威插件运行期数据。 |
@@ -103,7 +103,13 @@ plugin-owned 非核心能力不归属`capability.Services`。owner 插件在`app
 | Plugin-owned 普通消费契约 | `apps/lina-plugins/<plugin-id>/backend/cap/<domain>cap` | 依赖 owner 插件的源码插件、owner adapter，以及通过显式注入使用 owner 契约的宿主模块 | owner 插件`backend/internal`、DAO、DO、Entity、controller、provider 密钥、私有缓存或宿主 dispatcher |
 | Plugin-owned Provider SPI 与 Guest SDK | `apps/lina-plugins/<plugin-id>/backend/cap/<domain>cap/spi`和`apps/lina-plugins/<plugin-id>/backend/cap/<domain>cap/bridge` | owner 插件 provider 注册 helper、源码 provider adapter，以及调用 owner-aware host service 的动态 guest | core `pluginhost`领域专属 facade、core `pluginbridge`领域专属 codec、owner 内部 service import 或绕过授权 |
 
-Core-owned provider factory 声明归属`pluginhost.Declarations.Providers()`。源码 provider 插件通过`ProvideTenant`和`ProvideOrg`等领域方法声明 factory。宿主启动装配负责持有 provider manager 实例，并把共享 manager 注入宿主能力 service；普通`capability`包不保留包级 provider 注册表。plugin-owned provider 使用 owner helper 将 typed factory 包装为通用 capability descriptor。`pluginhost`只接收这些 descriptor，不得为非核心领域新增`ProvideAIText`等`Provide<Domain>`facade。
+Core-owned provider factory 声明归属`pluginhost.Declarations.Providers()`。源码 provider 插件通过`ProvideTenant`和`ProvideOrg`等领域方法声明 factory。宿主启动装配负责持有 provider manager 实例，并把共享 manager 注入宿主能力 service；普通`capability`包不保留包级 provider 注册表。
+
+机器认证 provider 使用`ProvideAuthentication(scheme, factory)`。scheme不区分大小写且全局唯一；非`Bearer`请求只会精确选择一个当前启用的 provider，provider失败后不会回退。`authcap/authspi`下的 provider SPI只接收与 HTTP 框架分离的只读请求投影，并且只能返回可信 machine actor与 allow-only授权快照；SPI不得获得`ghttp.Request`、创建用户 session，也不得通过普通`authcap.Service`消费面注册。
+
+宿主盖章的`authspi.ProviderEnv`只提供 provider插件 ID、插件作用域配置读取器和插件绑定的`MachineCoordination`服务。`MachineCoordination`拥有租户维度的`machine-access`修订号域和集群共享重放摘要消费；provider不能选择其他插件 scope，也不能访问宿主协调键。集群协调状态不确定时，机器认证必须失败关闭。
+
+Plugin-owned provider 使用 owner helper 将 typed factory 包装为通用 capability descriptor。`pluginhost`只接收这些 descriptor，不得为非核心领域新增`ProvideAIText`等`Provide<Domain>`facade。
 
 ## 宿主领域实现
 
@@ -131,6 +137,17 @@ Core-owned provider factory 声明归属`pluginhost.Declarations.Providers()`。
 同一中间件组内应避免无必要地罗列`ctrl.Method1, ctrl.Method2, ...`。
 
 当**同一控制器的方法必须落在不同中间件组**（例如公开登录 vs 鉴权后管理接口）时，宿主沿用拆分注册：公开组与受保护组分别`Bind`对应方法，而不是再套一层 Public/Protected 控制器封装。
+
+宿主、源码插件和动态插件的受保护路由在省略`actors`时默认使用`actors:"user"`。允许 machine actor的路由必须完整声明以下元数据：
+
+| 标签 | 契约 |
+| --- | --- |
+| `operation` | 稳定且全局唯一的接口操作码。 |
+| `resource` | 稳定的资源类型整体编码。 |
+| `action` | 资源整体`read`或`write`。 |
+| `actors` | `machine`或`user,machine`；未知 actor会被拒绝。 |
+
+宿主分别在静态路由启动、源码路由注册和动态路由产物及生命周期校验阶段执行治理。机器授权只有在路由允许`machine`、provider快照允许精确`operation`，并且同时允许已声明的`resource + action`时才通过。元数据缺失和 operation重复均失败关闭；未声明`actors`的现有路由继续只允许用户。
 
 ### 生命周期前置 Hook（目标 vs 全局）
 
@@ -236,7 +253,7 @@ hostServices:
 | `hostconfig` | `resources.keys` | `host:hostconfig` | `get`<br/>`sys_config.get`<br/>`sys_config.value.set`<br/>`sys_config.reset` |
 | `manifest` | `resources.paths` | `host:manifest` | `get`<br/>`get_many`<br/>`list` |
 | `apidoc` | 无 | `host:apidoc` | `route_text.resolve`<br/>`route_texts.resolve`<br/>`route_title_operation_keys.find` |
-| `auth` | 无 | `host:auth:token`<br/>`host:auth:external_login`<br/>`host:auth:authz` | `token.tenant.select`<br/>`token.tenant.switch`<br/>`token.impersonation_token.issue`<br/>`token.impersonation_token.revoke`<br/>`external_login.login_by_verified_identity`<br/>`authz.permissions.batch_get`<br/>`authz.permissions.batch_has`<br/>`authz.permissions.has`<br/>`authz.users.platform_admin.check`<br/>`authz.role_permissions.replace` |
+| `auth` | 无 | `host:auth:token`<br/>`host:auth:external_login`<br/>`host:auth:authz`<br/>`host:auth:machine_coordination` | `token.tenant.select`<br/>`token.tenant.switch`<br/>`token.impersonation_token.issue`<br/>`token.impersonation_token.revoke`<br/>`external_login.login_by_verified_identity`<br/>`authz.permissions.batch_get`<br/>`authz.permissions.batch_has`<br/>`authz.permissions.has`<br/>`authz.users.platform_admin.check`<br/>`authz.role_permissions.replace`<br/>`machine_coordination.configure`<br/>`machine_coordination.cluster_enabled`<br/>`machine_coordination.revision.current`<br/>`machine_coordination.revision.mark_changed`<br/>`machine_coordination.replay.consume_shared` |
 | `users` | 无 | `host:users` | `users.current.get`<br/>`users.batch_get`<br/>`users.resolve.batch`<br/>`users.list`<br/>`users.visible.ensure`<br/>`users.create`<br/>`users.create_from_external`<br/>`users.update`<br/>`users.delete`<br/>`users.status.set`<br/>`users.password.reset`<br/>`users.assignment.roles.replace` |
 | `bizctx` | 无 | `host:bizctx` | `current.get` |
 | `dict` | 无 | `host:dict` | `dict.refresh`<br/>`dict.type.get`<br/>`dict.type.batch_get`<br/>`dict.type.list`<br/>`dict.type.visible.ensure`<br/>`dict.type.keys.visible.ensure`<br/>`dict.type.create`<br/>`dict.type.update`<br/>`dict.type.delete`<br/>`dict.value.get`<br/>`dict.value.batch_get`<br/>`dict.value.labels.resolve`<br/>`dict.value.list`<br/>`dict.value.visible.ensure`<br/>`dict.value.values.visible.ensure`<br/>`dict.value.create`<br/>`dict.value.update`<br/>`dict.value.delete`<br/>`dict.value.by_type.delete` |
@@ -244,7 +261,7 @@ hostServices:
 | `jobs` | 无 | `host:jobs` | `jobs.batch_get`<br/>`jobs.list`<br/>`jobs.visible.ensure`<br/>`jobs.create`<br/>`jobs.update`<br/>`jobs.delete`<br/>`jobs.run`<br/>`jobs.status.set`<br/>`jobs.register` |
 | `notifications` | 除`messages.send`使用`resources[].ref`外无需资源声明 | `host:notifications` | `messages.batch_get`<br/>`messages.list`<br/>`messages.by_source.batch_get`<br/>`messages.visible.ensure`<br/>`messages.send`<br/>`messages.delete`<br/>`messages.by_source.delete`<br/>`messages.mark_read`<br/>`messages.mark_unread` |
 | `plugins` | 无 | `host:plugins` | `plugins.current.get`<br/>`plugins.batch_get`<br/>`plugins.registry.list`<br/>`plugins.tenant.list`<br/>`config.get`<br/>`plugins.state.enabled.check`<br/>`plugins.state.provider_enabled.check`<br/>`plugins.state.enabled_authoritative.check`<br/>`plugins.lifecycle.tenant_plugin_disable.ensure`<br/>`plugins.lifecycle.tenant_plugin_disabled.notify`<br/>`plugins.lifecycle.tenant_delete.ensure`<br/>`plugins.lifecycle.tenant_deleted.notify` |
-| `route` | 无 | `host:route` | `metadata.get` |
+| `route` | 无 | `host:route` | `metadata.get`<br/>`machine_authorizations.list` |
 | `sessions` | 无 | `host:sessions` | `sessions.current.get`<br/>`sessions.list`<br/>`sessions.batch_get`<br/>`sessions.users.online.batch_get`<br/>`sessions.visible.ensure`<br/>`sessions.revoke`<br/>`sessions.revoke_many` |
 | `org` | 无 | `host:org` | `capability.available`<br/>`capability.status`<br/>`org.assignment.user_profiles.batch_get`<br/>`org.department.tree.list`<br/>`org.department.batch_get`<br/>`org.department.list`<br/>`org.post.batch_get`<br/>`org.post.options.list`<br/>`org.department.visible.ensure_many`<br/>`org.post.visible.ensure_many`<br/>`org.department.create`<br/>`org.department.update`<br/>`org.department.delete`<br/>`org.post.create`<br/>`org.post.update`<br/>`org.post.delete`<br/>`org.assignment.by_user.replace`<br/>`org.assignment.by_user.cleanup` |
 | `tenant` | 无 | `host:tenant` | `capability.available`<br/>`capability.status`<br/>`tenant.context.current`<br/>`tenant.context.info`<br/>`tenant.context.platform_bypass`<br/>`tenant.directory.batch_get`<br/>`tenant.directory.list`<br/>`tenant.membership.validate`<br/>`tenant.membership.list_by_user`<br/>`tenant.directory.visible.ensure_many`<br/>`tenant.plugins.enabled.set`<br/>`tenant.plugins.defaults.provision`<br/>`tenant.filter.context` |

@@ -11,6 +11,7 @@ import (
 	bizctxsvc "lina-core/internal/service/bizctx"
 	configsvc "lina-core/internal/service/config"
 	i18nsvc "lina-core/internal/service/i18n"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -48,14 +49,22 @@ type serviceImpl struct {
 	bizCtxSvc bizctxsvc.Service
 	i18nSvc   i18nsvc.Service
 	pluginSvc pluginRouteProvider
+	routeAuth authcap.RouteAuthorizationCatalogue
 }
 
 // New creates and returns a new apidoc service from explicit runtime-owned dependencies.
-func New(configSvc configsvc.Service, bizCtxSvc bizctxsvc.Service, i18nSvc i18nsvc.Service, pluginSvc pluginRouteProvider) Service {
+func New(
+	configSvc configsvc.Service,
+	bizCtxSvc bizctxsvc.Service,
+	i18nSvc i18nsvc.Service,
+	pluginSvc pluginRouteProvider,
+	routeAuth authcap.RouteAuthorizationCatalogue,
+) Service {
 	return &serviceImpl{
 		configSvc: configSvc,
 		bizCtxSvc: bizCtxSvc,
 		i18nSvc:   i18nSvc,
 		pluginSvc: pluginSvc,
+		routeAuth: routeAuth,
 	}
 }

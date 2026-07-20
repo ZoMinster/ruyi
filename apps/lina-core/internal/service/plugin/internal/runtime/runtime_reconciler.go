@@ -331,9 +331,12 @@ func (s *serviceImpl) reconcilePluginIfNeeded(
 	stableState := store.BuildStableHostState(registry)
 	if desiredState == plugintypes.HostStateUninstalled.String() {
 		if registry.Installed != statusflag.Installed.Int() {
-			return nil
+			return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 		}
-		return s.applyUninstall(ctx, registry)
+		if err = s.applyUninstall(ctx, registry); err != nil {
+			return err
+		}
+		return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 	}
 
 	desiredManifest, err := s.lookupDesiredManifest(registry.PluginId, manifestByID)
@@ -349,22 +352,42 @@ func (s *serviceImpl) reconcilePluginIfNeeded(
 	}
 
 	if registry.Installed != statusflag.Installed.Int() {
-		return s.applyInstall(ctx, registry, desiredManifest, desiredState, options)
+		if err = s.validateDynamicRouteAuthorizationCandidate(desiredManifest); err != nil {
+			return err
+		}
+		if err = s.applyInstall(ctx, registry, desiredManifest, desiredState, options); err != nil {
+			return err
+		}
+		return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 	}
 	if strings.TrimSpace(desiredManifest.Version) != strings.TrimSpace(registry.Version) {
 		// Version drift is intentionally left as a pending runtime upgrade. Only
 		// the explicit management API is allowed to run upgrade side effects.
-		return nil
+		return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 	}
 	if s.shouldRefreshInstalledRelease(ctx, registry, desiredManifest) {
 		// Same semantic version can still require refresh when the staged artifact,
 		// archive bytes, or synthesized checksum changed after a rebuild.
-		return s.applyRefresh(ctx, registry, desiredManifest, desiredState)
+		if err = s.validateDynamicRouteAuthorizationCandidate(desiredManifest); err != nil {
+			return err
+		}
+		if err = s.applyRefresh(ctx, registry, desiredManifest, desiredState); err != nil {
+			return err
+		}
+		return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 	}
 	if desiredState != stableState {
-		return s.applyStateToggle(ctx, registry, desiredManifest, desiredState)
+		if desiredState == plugintypes.HostStateEnabled.String() {
+			if err = s.validateDynamicRouteAuthorizationCandidate(desiredManifest); err != nil {
+				return err
+			}
+		}
+		if err = s.applyStateToggle(ctx, registry, desiredManifest, desiredState); err != nil {
+			return err
+		}
+		return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 	}
-	return nil
+	return s.syncDynamicRouteAuthorizationForPlugin(ctx, registry.PluginId)
 }
 
 // lookupDesiredManifest resolves one desired manifest from a caller-owned batch

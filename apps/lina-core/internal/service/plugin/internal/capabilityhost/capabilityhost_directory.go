@@ -202,11 +202,15 @@ func (s *scopedDirectory) Auth() authcap.Service {
 	// (extlogin.Service). The host adapter additionally implements
 	// pluginBoundExternalLogin so ForPlugin can stamp pluginID without keeping a
 	// concrete *externalLoginAdapter field on directory.
-	binder, ok := baseAuth.ExternalLogin().(pluginBoundExternalLogin)
-	if !ok || binder == nil {
-		return baseAuth
+	externalLogin := baseAuth.ExternalLogin()
+	if binder, ok := externalLogin.(pluginBoundExternalLogin); ok && binder != nil {
+		externalLogin = binder.forPlugin(s.pluginID)
 	}
-	return authcap.ForPlugin(baseAuth, binder.forPlugin(s.pluginID))
+	machineCoordination := baseAuth.MachineCoordination()
+	if binder, ok := machineCoordination.(pluginBoundMachineCoordination); ok && binder != nil {
+		machineCoordination = binder.forPlugin(s.pluginID)
+	}
+	return authcap.ForPlugin(baseAuth, externalLogin, machineCoordination)
 }
 
 // Users returns the delegated user-domain ordinary capability service.

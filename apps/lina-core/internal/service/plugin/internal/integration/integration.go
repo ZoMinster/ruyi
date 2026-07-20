@@ -175,6 +175,9 @@ type Service interface {
 
 	// CanExposeBusinessEntries reports whether the plugin with the given ID can expose business entries.
 	CanExposeBusinessEntries(ctx context.Context, pluginID string) bool
+	// ResolveBusinessEntryEnablement resolves a bounded set of plugin IDs from
+	// one shared registry and tenant-state snapshot without per-plugin queries.
+	ResolveBusinessEntryEnablement(ctx context.Context, pluginIDs []string) (map[string]bool, error)
 	// IsProviderEnabled reports whether pluginID is platform-enabled for capability provider use.
 	IsProviderEnabled(ctx context.Context, pluginID string) bool
 	// IsInstalledEnabledForTenant reports whether the plugin is installed, enabled, and

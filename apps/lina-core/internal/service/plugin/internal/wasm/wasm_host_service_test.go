@@ -64,6 +64,7 @@ type capabilityHostServiceTestServices struct {
 	lock          lockcap.Service
 	notifications capabilitynotifycap.Service
 	plugins       capabilityplugincap.Service
+	route         routecap.Service
 	sessions      capabilitysessioncap.Service
 	storage       storagecap.Service
 	tenant        tenantcap.Service
@@ -146,8 +147,8 @@ func (s *capabilityHostServiceTestServices) Org() orgcap.Service { return s.org 
 // Plugins returns the configured plugin-governance domain service.
 func (s *capabilityHostServiceTestServices) Plugins() capabilityplugincap.Service { return s.plugins }
 
-// Route returns no adapter for capability host-service tests.
-func (*capabilityHostServiceTestServices) Route() routecap.Service { return nil }
+// Route returns the configured route capability service.
+func (s *capabilityHostServiceTestServices) Route() routecap.Service { return s.route }
 
 // Sessions returns the configured online-session domain service.
 func (s *capabilityHostServiceTestServices) Sessions() capabilitysessioncap.Service {
@@ -188,6 +189,35 @@ func configureDomainHostServicesForCapabilityTest(t *testing.T, services capabil
 		t.Fatal("configure domain host services failed: services is nil")
 	}
 	bindTestHostServiceRuntime(t, withTestDomainServices(services))
+}
+
+// TestContextWithHostCallBizContextRejectsMachineUserFields verifies dynamic
+// guest input cannot promote a machine identity into user authorization state.
+func TestContextWithHostCallBizContextRejectsMachineUserFields(t *testing.T) {
+	hcc := &hostCallContext{identity: &protocol.IdentitySnapshotV1{
+		ActorKind:    string(authcap.ActorKindMachine),
+		SubjectID:    "machine-client-1",
+		CredentialID: "AKIDEXAMPLE",
+		TenantId:     42,
+		TokenID:      "forged-token",
+		UserID:       1,
+		Username:     "forged-user",
+		Permissions:  []string{"*:*:*"},
+		RoleNames:    []string{"admin"},
+		DataScope:    1,
+		IsSuperAdmin: true,
+	}}
+
+	current := bizctxcap.CurrentFromContext(contextWithHostCallBizContext(context.Background(), hcc))
+	if current.Actor.Kind != authcap.ActorKindMachine || current.Actor.SubjectID != "machine-client-1" {
+		t.Fatalf("expected machine actor projection, got %+v", current)
+	}
+	if current.UserID != 0 || current.TokenID != "" || current.Username != "" {
+		t.Fatalf("expected machine user fields to be cleared, got %+v", current)
+	}
+	if len(current.Permissions) != 0 || current.DataScope != 0 || current.IsSuperAdmin {
+		t.Fatalf("expected machine role fields to be cleared, got %+v", current)
+	}
 }
 
 // TestHandleHostServiceInvokeOrgMethods verifies organization host-service
@@ -643,7 +673,7 @@ func TestHandleHostServiceInvokeAdditionalDomainMethods(t *testing.T) {
 	authzSvc := &capabilityHostServiceAuthzService{}
 	dictSvc := &capabilityHostServiceDictService{}
 	services := &capabilityHostServiceTestServices{
-		auth:   authcap.New(nil, authzSvc, nil),
+		auth:   authcap.New(nil, authzSvc, nil, nil),
 		org:    orgspi.New(nil, nil, nil),
 		dict:   dictSvc,
 		tenant: tenantspi.New(nil, nil, nil, nil),

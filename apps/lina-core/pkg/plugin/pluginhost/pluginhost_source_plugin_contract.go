@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogf/gf/v2/errors/gerror"
 
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -117,6 +118,14 @@ func (p *sourcePlugin) Access() AccessDeclarations {
 		return nil
 	}
 	return p.access
+}
+
+// ProvideAuthentication declares one machine authentication scheme factory.
+func (r *sourcePluginProviders) ProvideAuthentication(scheme string, factory authspi.ProviderFactory) error {
+	if r == nil || r.plugin == nil {
+		return gerror.New("pluginhost: source plugin provider facade is nil")
+	}
+	return r.plugin.registerAuthenticationProvider(scheme, factory)
 }
 
 // ProvideTenant declares one source-plugin tenant provider factory.

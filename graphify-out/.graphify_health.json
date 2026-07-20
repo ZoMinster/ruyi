@@ -1,0 +1,177 @@
+{
+  "node_count": 38205,
+  "raw_edge_count": 107089,
+  "non_object_edges": 0,
+  "missing_endpoint_edges": 0,
+  "dangling_endpoint_edges": 16726,
+  "self_loop_edges": 27,
+  "valid_candidate_edges": 90363,
+  "exact_duplicate_edges": 2468,
+  "directed_unique_endpoint_pairs": 85152,
+  "directed_same_endpoint_collapsed_edges": 5211,
+  "undirected_unique_endpoint_pairs": 84924,
+  "undirected_same_endpoint_collapsed_edges": 5439,
+  "same_endpoint_group_count": 2924,
+  "relation_variant_groups": 1057,
+  "source_file_variant_groups": 0,
+  "source_location_variant_groups": 729,
+  "context_variant_groups": 608,
+  "post_build_graph_type": "Graph",
+  "post_build_node_count": 38205,
+  "post_build_edge_count": 84827,
+  "post_build_error": "",
+  "producer_suppression": {
+    "path": "/Users/minster/.local/share/uv/tools/graphifyy/lib/python3.12/site-packages/graphify/extract.py",
+    "total_sites": 10,
+    "sites": [
+      {
+        "line": 958,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 1108,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 1110,
+        "name": "seen_doc_refs",
+        "tuple_arity": 0,
+        "sample": "seen_doc_refs: set[str] = set()"
+      },
+      {
+        "line": 1533,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 2002,
+        "name": "seen_keys",
+        "tuple_arity": 0,
+        "sample": "seen_keys: set[tuple] = set()"
+      },
+      {
+        "line": 2925,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3033,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3112,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3607,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3608,
+        "name": "seen_edges",
+        "tuple_arity": 4,
+        "sample": "seen_edges: set[tuple[str, str, str, str | None]] = set()"
+      }
+    ],
+    "error": ""
+  },
+  "examples": [
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min_a",
+      "edge_count": 81,
+      "relations": [
+        "contains"
+      ],
+      "source_files": [
+        "apps/lina-vben/apps/web-antd/public/stoplight/web-components.min.js"
+      ],
+      "source_locations": [
+        "L2"
+      ],
+      "contexts": [
+        ""
+      ]
+    },
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min_s",
+      "edge_count": 72,
+      "relations": [
+        "contains"
+      ],
+      "source_files": [
+        "apps/lina-vben/apps/web-antd/public/stoplight/web-components.min.js"
+      ],
+      "source_locations": [
+        "L2"
+      ],
+      "contexts": [
+        ""
+      ]
+    },
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min_l",
+      "edge_count": 68,
+      "relations": [
+        "contains"
+      ],
+      "source_files": [
+        "apps/lina-vben/apps/web-antd/public/stoplight/web-components.min.js"
+      ],
+      "source_locations": [
+        "L2"
+      ],
+      "contexts": [
+        ""
+      ]
+    },
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min_i",
+      "edge_count": 67,
+      "relations": [
+        "contains"
+      ],
+      "source_files": [
+        "apps/lina-vben/apps/web-antd/public/stoplight/web-components.min.js"
+      ],
+      "source_locations": [
+        "L2"
+      ],
+      "contexts": [
+        ""
+      ]
+    },
+    {
+      "source": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min",
+      "target": "apps_lina_vben_apps_web_antd_public_stoplight_web_components_min_u",
+      "edge_count": 64,
+      "relations": [
+        "contains"
+      ],
+      "source_files": [
+        "apps/lina-vben/apps/web-antd/public/stoplight/web-components.min.js"
+      ],
+      "source_locations": [
+        "L2"
+      ],
+      "contexts": [
+        ""
+      ]
+    }
+  ]
+}

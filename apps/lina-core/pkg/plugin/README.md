@@ -38,7 +38,7 @@ Dynamic plugins may use only the concrete methods that are registered in the dyn
 | `Jobs` | Reads scheduled-job metadata, searches bounded job candidates, validates job visibility, and performs governed runtime job actions. | Declaration-time job contracts are submitted through `pluginbridge.Declarations.Jobs().Register(...)`; runtime services do not expose `Register`. |
 | `Notifications` | Lists and reads typed notification message projections, batch-loads messages by business source, validates visibility, deletes messages, updates read state, and sends governed notifications. | Actor-scoped read, delete, and read-state calls do not require resource declarations; `messages.send` requires a `resources[].ref` boundary. |
 | `Plugins` | Exposes current plugin projection, plugin registry projections, tenant plugin pages, plugin enablement state, provider enablement state, plugin-scoped config, and governed plugin lifecycle orchestration. | Runtime checks cover plugin visibility, plugin enablement/provider state, plugin-scoped config source isolation, lifecycle preconditions, and dynamic `hostServices` authorization for published governance methods. |
-| `Route` | Exposes dynamic-route metadata for the current execution. | Used by runtime route dispatch without exposing host router internals. |
+| `Route` | Exposes dynamic-route metadata for the current execution and a bounded read-only catalogue of machine-enabled operations and whole-resource modes. | The host projects stable declarations from one shared catalogue, resolves plugin owners in one batch, marks disabled routes inactive without deleting them, and exposes the same contract through `host:route` to dynamic plugins. |
 | `Sessions` | Reads the current online-session projection, searches sessions, batch-loads session projections, validates session visibility, and batch-reads user online status. | Host validation keeps session and user visibility scoped to the caller. |
 | `Storage` | Provides plugin-private object storage operations for plugin-owned attachments, binary objects, import/export temporaries, and uninstall cleanup, including explicit batch stat, cursor list, and batch delete. | Source plugins receive plugin-scoped `Storage()` through `capability.Services` from `pluginhost` inputs; dynamic declarations use `service: storage` with `resources.paths`; writes do not create `sys_file` rows or expose provider keys or local paths. |
 | `Cache` | Provides plugin-scoped cache get, set, delete, multi-key get/set/delete, increment, and expiry operations. | Dynamic declarations use `resources[].ref`; runtime dispatch validates namespace, key, value size, and positive TTL payloads. Cache remains non-authoritative plugin runtime data. |
@@ -127,6 +127,20 @@ Source provider plugins declare those factories there with domain-specific
 methods such as `ProvideTenant` and `ProvideOrg`. Host startup owns the provider
 manager instances and injects the shared managers into host capability services;
 ordinary `capability` packages do not keep package-level provider registries.
+Machine-authentication providers use `ProvideAuthentication(scheme, factory)`.
+Schemes are case-insensitive and globally unique; the host selects exactly one
+enabled provider for a non-`Bearer` request and never falls back after a
+provider failure. The provider SPI under `authcap/authspi` receives a detached
+request projection and may return only a trusted machine actor plus an
+allow-only authorization snapshot. It cannot receive `ghttp.Request`, create a
+user session, or register through the ordinary `authcap.Service` consumer
+surface.
+The host-stamped `authspi.ProviderEnv` exposes only the provider plugin ID, its
+plugin-scoped configuration reader, and its plugin-bound
+`MachineCoordination` service. `MachineCoordination` owns the tenant-scoped
+`machine-access` revision domain and cluster-shared replay-digest consumption;
+providers cannot choose another plugin scope or access host coordination keys.
+Cluster coordination uncertainty must fail machine authentication closed.
 Plugin-owned providers use owner helpers to wrap typed factories as generic
 capability descriptors. `pluginhost` receives those descriptors and must not add
 new `Provide<Domain>` facades, such as `ProvideAIText`, for non-core domains.
@@ -157,6 +171,24 @@ When registering source-plugin or host HTTP routes, `group.Bind` **defaults to c
 Within one middleware group, avoid listing individual methods unless necessary.
 
 When methods on the same logical controller must sit in **different middleware groups** (for example public login vs authenticated management APIs), the host keeps the original split-registration design: bind the public methods on the public group and the protected methods on the protected group, instead of adding Public/Protected controller wrapper types.
+
+Protected host, source-plugin, and dynamic-plugin routes default to
+`actors:"user"` when `actors` is omitted. A route that permits a machine actor
+must declare all of the following metadata:
+
+| Tag | Contract |
+| --- | --- |
+| `operation` | Stable, globally unique interface operation code. |
+| `resource` | Stable whole-resource type code. |
+| `action` | Resource-wide `read` or `write`. |
+| `actors` | `machine` or `user,machine`; unknown actors are rejected. |
+
+The host validates static routes at startup, source routes during registration,
+and dynamic route contracts during artifact and lifecycle validation. Machine
+authorization succeeds only when the route allows `machine`, the provider
+snapshot allows the exact `operation`, and it also allows the declared
+`resource + action`. Missing metadata and duplicate operation codes fail closed;
+existing routes without `actors` remain user-only.
 
 ### Lifecycle preconditions (target vs global)
 
@@ -266,7 +298,7 @@ catalog implementation and only lists core-owned services.
 | `hostconfig` | `resources.keys` | `host:hostconfig` | `get`<br/>`sys_config.get`<br/>`sys_config.value.set`<br/>`sys_config.reset` |
 | `manifest` | `resources.paths` | `host:manifest` | `get`<br/>`get_many`<br/>`list` |
 | `apidoc` | None | `host:apidoc` | `route_text.resolve`<br/>`route_texts.resolve`<br/>`route_title_operation_keys.find` |
-| `auth` | None | `host:auth:token`<br/>`host:auth:external_login`<br/>`host:auth:authz` | `token.tenant.select`<br/>`token.tenant.switch`<br/>`token.impersonation_token.issue`<br/>`token.impersonation_token.revoke`<br/>`external_login.login_by_verified_identity`<br/>`authz.permissions.batch_get`<br/>`authz.permissions.batch_has`<br/>`authz.permissions.has`<br/>`authz.users.platform_admin.check`<br/>`authz.role_permissions.replace` |
+| `auth` | None | `host:auth:token`<br/>`host:auth:external_login`<br/>`host:auth:authz`<br/>`host:auth:machine_coordination` | `token.tenant.select`<br/>`token.tenant.switch`<br/>`token.impersonation_token.issue`<br/>`token.impersonation_token.revoke`<br/>`external_login.login_by_verified_identity`<br/>`authz.permissions.batch_get`<br/>`authz.permissions.batch_has`<br/>`authz.permissions.has`<br/>`authz.users.platform_admin.check`<br/>`authz.role_permissions.replace`<br/>`machine_coordination.configure`<br/>`machine_coordination.cluster_enabled`<br/>`machine_coordination.revision.current`<br/>`machine_coordination.revision.mark_changed`<br/>`machine_coordination.replay.consume_shared` |
 | `users` | None | `host:users` | `users.current.get`<br/>`users.batch_get`<br/>`users.resolve.batch`<br/>`users.list`<br/>`users.visible.ensure`<br/>`users.create`<br/>`users.create_from_external`<br/>`users.update`<br/>`users.delete`<br/>`users.status.set`<br/>`users.password.reset`<br/>`users.assignment.roles.replace` |
 | `bizctx` | None | `host:bizctx` | `current.get` |
 | `dict` | None | `host:dict` | `dict.refresh`<br/>`dict.type.get`<br/>`dict.type.batch_get`<br/>`dict.type.list`<br/>`dict.type.visible.ensure`<br/>`dict.type.keys.visible.ensure`<br/>`dict.type.create`<br/>`dict.type.update`<br/>`dict.type.delete`<br/>`dict.value.get`<br/>`dict.value.batch_get`<br/>`dict.value.labels.resolve`<br/>`dict.value.list`<br/>`dict.value.visible.ensure`<br/>`dict.value.values.visible.ensure`<br/>`dict.value.create`<br/>`dict.value.update`<br/>`dict.value.delete`<br/>`dict.value.by_type.delete` |
@@ -274,7 +306,7 @@ catalog implementation and only lists core-owned services.
 | `jobs` | None | `host:jobs` | `jobs.batch_get`<br/>`jobs.list`<br/>`jobs.visible.ensure`<br/>`jobs.create`<br/>`jobs.update`<br/>`jobs.delete`<br/>`jobs.run`<br/>`jobs.status.set`<br/>`jobs.register` |
 | `notifications` | None except `messages.send`, which uses `resources[].ref` | `host:notifications` | `messages.batch_get`<br/>`messages.list`<br/>`messages.by_source.batch_get`<br/>`messages.visible.ensure`<br/>`messages.send`<br/>`messages.delete`<br/>`messages.by_source.delete`<br/>`messages.mark_read`<br/>`messages.mark_unread` |
 | `plugins` | None | `host:plugins` | `plugins.current.get`<br/>`plugins.batch_get`<br/>`plugins.registry.list`<br/>`plugins.tenant.list`<br/>`config.get`<br/>`plugins.state.enabled.check`<br/>`plugins.state.provider_enabled.check`<br/>`plugins.state.enabled_authoritative.check`<br/>`plugins.lifecycle.tenant_plugin_disable.ensure`<br/>`plugins.lifecycle.tenant_plugin_disabled.notify`<br/>`plugins.lifecycle.tenant_delete.ensure`<br/>`plugins.lifecycle.tenant_deleted.notify` |
-| `route` | None | `host:route` | `metadata.get` |
+| `route` | None | `host:route` | `metadata.get`<br/>`machine_authorizations.list` |
 | `sessions` | None | `host:sessions` | `sessions.current.get`<br/>`sessions.list`<br/>`sessions.batch_get`<br/>`sessions.users.online.batch_get`<br/>`sessions.visible.ensure`<br/>`sessions.revoke`<br/>`sessions.revoke_many` |
 | `org` | None | `host:org` | `capability.available`<br/>`capability.status`<br/>`org.assignment.user_profiles.batch_get`<br/>`org.department.tree.list`<br/>`org.department.batch_get`<br/>`org.department.list`<br/>`org.post.batch_get`<br/>`org.post.options.list`<br/>`org.department.visible.ensure_many`<br/>`org.post.visible.ensure_many`<br/>`org.department.create`<br/>`org.department.update`<br/>`org.department.delete`<br/>`org.post.create`<br/>`org.post.update`<br/>`org.post.delete`<br/>`org.assignment.by_user.replace`<br/>`org.assignment.by_user.cleanup` |
 | `tenant` | None | `host:tenant` | `capability.available`<br/>`capability.status`<br/>`tenant.context.current`<br/>`tenant.context.info`<br/>`tenant.context.platform_bypass`<br/>`tenant.directory.batch_get`<br/>`tenant.directory.list`<br/>`tenant.membership.validate`<br/>`tenant.membership.list_by_user`<br/>`tenant.directory.visible.ensure_many`<br/>`tenant.plugins.enabled.set`<br/>`tenant.plugins.defaults.provision`<br/>`tenant.filter.context` |

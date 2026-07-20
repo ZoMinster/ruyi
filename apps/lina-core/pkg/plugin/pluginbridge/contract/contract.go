@@ -57,6 +57,15 @@ type RouteContract struct {
 	Access string `json:"access,omitempty" yaml:"access,omitempty"`
 	// Permission stores the host permission key enforced for authenticated access.
 	Permission string `json:"permission,omitempty" yaml:"permission,omitempty"`
+	// Operation is the globally unique stable machine interface operation code.
+	Operation string `json:"operation,omitempty" yaml:"operation,omitempty"`
+	// Resource is the stable whole-resource type governed by this route.
+	Resource string `json:"resource,omitempty" yaml:"resource,omitempty"`
+	// Action is the resource-wide read or write action performed by this route.
+	Action string `json:"action,omitempty" yaml:"action,omitempty"`
+	// Actors is the comma-separated user/machine principal allowlist. Empty
+	// defaults to user-only.
+	Actors string `json:"actors,omitempty" yaml:"actors,omitempty"`
 	// Meta stores plugin-defined route metadata that the host transports without interpretation.
 	Meta map[string]string `json:"meta,omitempty" yaml:"meta,omitempty"`
 	// RequestType is the guest controller request binding name resolved at runtime.
@@ -89,7 +98,7 @@ type BridgeRequestEnvelopeV1 struct {
 	Route *RouteMatchSnapshotV1 `json:"route,omitempty"`
 	// Request carries the sanitized inbound HTTP request snapshot.
 	Request *HTTPRequestSnapshotV1 `json:"request,omitempty"`
-	// Identity carries the authenticated user context injected by the host.
+	// Identity carries the authenticated user or machine context injected by the host.
 	Identity *IdentitySnapshotV1 `json:"identity,omitempty"`
 	// RequestID carries the host-generated trace identifier for this invocation.
 	RequestID string `json:"requestId,omitempty"`
@@ -147,8 +156,16 @@ type HTTPRequestSnapshotV1 struct {
 	Body []byte `json:"body,omitempty"`
 }
 
-// IdentitySnapshotV1 describes authenticated user context injected by the host.
+// IdentitySnapshotV1 describes authenticated user or machine context injected by the host.
 type IdentitySnapshotV1 struct {
+	// ActorKind identifies the host-trusted principal category: user or machine.
+	ActorKind string `json:"actorKind,omitempty"`
+	// SubjectID identifies the authenticated user or machine client without
+	// assigning machine subjects a host user ID.
+	SubjectID string `json:"subjectId,omitempty"`
+	// CredentialID identifies the token, session, or machine access key in
+	// non-secret audit form.
+	CredentialID string `json:"credentialId,omitempty"`
 	// TokenID identifies the authenticated session or token presented to the host.
 	TokenID string `json:"tokenId,omitempty"`
 	// TenantId is the current tenant boundary associated with the token.

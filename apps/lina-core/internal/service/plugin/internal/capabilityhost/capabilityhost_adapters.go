@@ -5,8 +5,10 @@ package capabilityhost
 
 import (
 	"context"
+	"sort"
 	"strings"
 
+	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
 	"lina-core/internal/service/apidoc"
@@ -15,6 +17,7 @@ import (
 	"lina-core/internal/service/plugin/internal/runtime"
 	"lina-core/pkg/bizerr"
 	"lina-core/pkg/plugin/capability/apidoccap"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/authcap/extlogin"
 	"lina-core/pkg/plugin/capability/authcap/token"
 	"lina-core/pkg/plugin/capability/bizctxcap"
@@ -348,12 +351,19 @@ func (s *i18nAdapter) Translate(ctx context.Context, key string, fallback string
 	return s.service.Translate(ctx, key, fallback)
 }
 
-// routeAdapter bridges internal dynamic-route helpers into the published contract.
-type routeAdapter struct{}
+// routeAdapter bridges request metadata and the startup-owned machine route
+// catalog into the published read-only contract.
+type routeAdapter struct {
+	catalog     authcap.RouteAuthorizationCatalogue
+	pluginState pluginStateLookup
+}
 
-// newRouteAdapter creates the source-plugin dynamic-route service adapter.
-func newRouteAdapter() routecap.Service {
-	return &routeAdapter{}
+// newRouteAdapter creates the source-plugin route service adapter from shared dependencies.
+func newRouteAdapter(
+	catalog authcap.RouteAuthorizationCatalogue,
+	pluginState pluginStateLookup,
+) routecap.Service {
+	return &routeAdapter{catalog: catalog, pluginState: pluginState}
 }
 
 // GetMetadata returns metadata attached to the current dynamic-route request.
@@ -369,10 +379,95 @@ func (s *routeAdapter) GetMetadata(ctx context.Context) *routecap.Metadata {
 		PublicPath:          metadata.PublicPath,
 		Tags:                append([]string(nil), metadata.Tags...),
 		Summary:             metadata.Summary,
+		Operation:           metadata.Operation,
+		Resource:            metadata.Resource,
+		Action:              metadata.Action,
+		Actors:              metadata.Actors,
 		Meta:                cloneStringMap(metadata.Meta),
 		ResponseBody:        metadata.ResponseBody,
 		ResponseContentType: metadata.ResponseContentType,
 	}
+}
+
+// ListMachineAuthorizations returns one detached and deterministically ordered
+// catalog. Plugin enablement is resolved once for all distinct route owners.
+func (s *routeAdapter) ListMachineAuthorizations(
+	ctx context.Context,
+	input routecap.MachineAuthorizationListInput,
+) (*routecap.MachineAuthorizationCatalogue, error) {
+	if s == nil || s.catalog == nil || s.pluginState == nil {
+		return nil, gerror.New("machine route authorization catalog is unavailable")
+	}
+	limit := input.Limit
+	if limit == 0 {
+		limit = routecap.DefaultMachineAuthorizationLimit
+	}
+	if limit < 1 || limit > routecap.MaxMachineAuthorizationLimit {
+		return nil, gerror.Newf("machine route authorization limit must be between 1 and %d", routecap.MaxMachineAuthorizationLimit)
+	}
+	routes := s.catalog.ListMachineRoutes()
+	if len(routes) > limit {
+		return nil, gerror.Newf("machine route authorization catalog exceeds limit %d", limit)
+	}
+
+	pluginIDs := machineRoutePluginIDs(routes)
+	enabledByID, err := s.pluginState.ResolveBusinessEntryEnablement(ctx, pluginIDs)
+	if err != nil {
+		return nil, gerror.Wrap(err, "resolve machine route owner enablement failed")
+	}
+	resourceByCode := make(map[string]*routecap.MachineResourceAuthorization)
+	items := make([]routecap.MachineRouteAuthorization, 0, len(routes))
+	for _, route := range routes {
+		active := route.OwnerKind == authcap.RouteOwnerKindHost || enabledByID[route.OwnerID]
+		items = append(items, routecap.MachineRouteAuthorization{
+			OwnerKind: string(route.OwnerKind),
+			OwnerID:   route.OwnerID,
+			Method:    route.Method,
+			Path:      route.Path,
+			Operation: string(route.Operation),
+			Resource:  string(route.Resource),
+			Action:    string(route.Access),
+			Active:    active,
+		})
+		resource := resourceByCode[string(route.Resource)]
+		if resource == nil {
+			resource = &routecap.MachineResourceAuthorization{Resource: string(route.Resource)}
+			resourceByCode[resource.Resource] = resource
+		}
+		switch route.Access {
+		case authcap.AccessModeRead:
+			resource.Read = true
+			resource.ActiveRead = resource.ActiveRead || active
+		case authcap.AccessModeWrite:
+			resource.Write = true
+			resource.ActiveWrite = resource.ActiveWrite || active
+		}
+	}
+	resources := make([]routecap.MachineResourceAuthorization, 0, len(resourceByCode))
+	for _, resource := range resourceByCode {
+		resources = append(resources, *resource)
+	}
+	sort.Slice(resources, func(i, j int) bool { return resources[i].Resource < resources[j].Resource })
+	return &routecap.MachineAuthorizationCatalogue{Routes: items, Resources: resources, Total: len(items)}, nil
+}
+
+// machineRoutePluginIDs returns unique source and dynamic route owners.
+func machineRoutePluginIDs(routes []authcap.RouteAuthorization) []string {
+	set := make(map[string]struct{})
+	for _, route := range routes {
+		if route.OwnerKind == authcap.RouteOwnerKindHost {
+			continue
+		}
+		if pluginID := strings.TrimSpace(route.OwnerID); pluginID != "" {
+			set[pluginID] = struct{}{}
+		}
+	}
+	items := make([]string, 0, len(set))
+	for pluginID := range set {
+		items = append(items, pluginID)
+	}
+	sort.Strings(items)
+	return items
 }
 
 // cloneStringMap returns a shallow copy of one string map.

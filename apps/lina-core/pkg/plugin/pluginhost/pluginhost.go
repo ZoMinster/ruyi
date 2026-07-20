@@ -6,6 +6,7 @@ package pluginhost
 import (
 	"io/fs"
 
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -250,6 +251,9 @@ type AccessDeclarations interface {
 
 // ProviderDeclarations exposes framework capability provider factory declarations.
 type ProviderDeclarations interface {
+	// ProvideAuthentication declares one machine authentication scheme and its
+	// provider factory. Scheme names are globally unique and case-insensitive.
+	ProvideAuthentication(scheme string, factory authspi.ProviderFactory) error
 	// ProvideTenant declares the tenant capability provider factory implemented by this source plugin.
 	ProvideTenant(factory tenantspi.ProviderFactory) error
 	// ProvideOrg declares the organization capability provider factory implemented by this source plugin.
@@ -288,6 +292,9 @@ type SourcePluginDefinition interface {
 	GetMenuFilters() []*MenuFilterHandlerRegistration
 	// GetPermissionFilters returns the registered permission filter callbacks.
 	GetPermissionFilters() []*PermissionFilterHandlerRegistration
+	// GetAuthenticationProviderFactories returns machine authentication
+	// factories keyed by normalized authorization scheme.
+	GetAuthenticationProviderFactories() map[string]authspi.ProviderFactory
 	// GetTenantProviderFactory returns the declared tenant provider factory.
 	GetTenantProviderFactory() tenantspi.ProviderFactory
 	// GetOrgProviderFactory returns the declared organization provider factory.

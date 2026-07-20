@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogf/gf/v2/errors/gerror"
 
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -280,6 +281,26 @@ func (p *sourcePlugin) registerUninstallHandler(handler SourcePluginUninstallHan
 		return gerror.New("pluginhost: uninstall handler is nil")
 	}
 	p.uninstallHandler = handler
+	return nil
+}
+
+// registerAuthenticationProvider records one normalized authentication scheme
+// factory declared by this source plugin.
+func (p *sourcePlugin) registerAuthenticationProvider(scheme string, factory authspi.ProviderFactory) error {
+	if p == nil {
+		return gerror.New(errMsgSourcePluginNil)
+	}
+	normalized, err := authspi.NormalizeScheme(scheme)
+	if err != nil {
+		return err
+	}
+	if factory == nil {
+		return gerror.Newf("pluginhost: authentication provider factory is nil: scheme=%s", normalized)
+	}
+	if _, exists := p.authenticationProviders[normalized]; exists {
+		return gerror.Newf("pluginhost: authentication scheme already declared: %s", normalized)
+	}
+	p.authenticationProviders[normalized] = factory
 	return nil
 }
 

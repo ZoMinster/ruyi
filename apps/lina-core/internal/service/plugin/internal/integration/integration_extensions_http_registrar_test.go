@@ -16,6 +16,7 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"lina-core/internal/service/datascope"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -45,6 +46,22 @@ type testSourceHTTPEchoRes struct {
 	Message string `json:"message"`
 }
 
+// testSourceHTTPMachineReq defines a complete machine-accessible source route.
+type testSourceHTTPMachineReq struct {
+	g.Meta `path:"/records" method:"get" operation:"plugin-demo.records.list" resource:"plugin-demo.records" action:"read" actors:"user,machine"`
+}
+
+// testSourceHTTPMachineRes is the machine route response DTO.
+type testSourceHTTPMachineRes struct{}
+
+// testSourceHTTPInvalidMachineReq omits resource metadata and must fail registration.
+type testSourceHTTPInvalidMachineReq struct {
+	g.Meta `path:"/invalid-records" method:"get" operation:"plugin-demo.records.invalid" action:"read" actors:"machine"`
+}
+
+// testSourceHTTPInvalidMachineRes is the invalid machine route response DTO.
+type testSourceHTTPInvalidMachineRes struct{}
+
 // testSourceHTTPPingHandler is the strict-route handler used to verify route capture.
 func testSourceHTTPPingHandler(ctx context.Context, req *testSourceHTTPPingReq) (*testSourceHTTPPingRes, error) {
 	return &testSourceHTTPPingRes{}, nil
@@ -64,6 +81,22 @@ func testSourceHTTPEchoHandler(
 	req *testSourceHTTPEchoReq,
 ) (*testSourceHTTPEchoRes, error) {
 	return &testSourceHTTPEchoRes{Message: "ok"}, nil
+}
+
+// testSourceHTTPMachineHandler serves the complete machine route declaration.
+func testSourceHTTPMachineHandler(
+	context.Context,
+	*testSourceHTTPMachineReq,
+) (*testSourceHTTPMachineRes, error) {
+	return &testSourceHTTPMachineRes{}, nil
+}
+
+// testSourceHTTPInvalidMachineHandler serves an intentionally invalid declaration.
+func testSourceHTTPInvalidMachineHandler(
+	context.Context,
+	*testSourceHTTPInvalidMachineReq,
+) (*testSourceHTTPInvalidMachineRes, error) {
+	return &testSourceHTTPInvalidMachineRes{}, nil
 }
 
 // TestSourceHTTPRegistrarExposeRoutesAndGlobalMiddlewares verifies the
@@ -160,6 +193,43 @@ func TestSourceRouteRegistrarCaptureSourceRouteBindings(t *testing.T) {
 	}
 	if bindings[1].Documentable {
 		t.Fatalf("expected raw handler to be non-documentable")
+	}
+}
+
+// TestSourceRouteRegistrarCapturesMachineAuthorization verifies source route
+// DTO tags are normalized into the common global-catalog projection.
+func TestSourceRouteRegistrarCapturesMachineAuthorization(t *testing.T) {
+	_, rootGroup := newSourceHTTPTestServer(t, false)
+	registrar := newSourceRouteRegistrar(rootGroup, "plugin-demo", nil, newSourceHTTPTestService(true))
+	registrar.Group(registrar.APIPrefix()+"/api/v1", func(group pluginhost.RouteGroup) {
+		group.Bind(testSourceHTTPMachineHandler)
+	})
+	if err := registrar.Err(); err != nil {
+		t.Fatalf("register machine source route: %v", err)
+	}
+	bindings := registrar.RouteBindings()
+	if len(bindings) != 1 {
+		t.Fatalf("expected one binding, got %d", len(bindings))
+	}
+	item := bindings[0].Authorization
+	if !item.AllowsActor(authcap.ActorKindMachine) ||
+		item.Operation != "plugin-demo.records.list" ||
+		item.Resource != "plugin-demo.records" ||
+		item.Access != authcap.AccessModeRead {
+		t.Fatalf("unexpected machine authorization metadata: %#v", item)
+	}
+}
+
+// TestSourceRouteRegistrarRejectsInvalidMachineAuthorization verifies invalid
+// source metadata fails before the route registration session is accepted.
+func TestSourceRouteRegistrarRejectsInvalidMachineAuthorization(t *testing.T) {
+	_, rootGroup := newSourceHTTPTestServer(t, false)
+	registrar := newSourceRouteRegistrar(rootGroup, "plugin-demo", nil, newSourceHTTPTestService(true))
+	registrar.Group(registrar.APIPrefix()+"/api/v1", func(group pluginhost.RouteGroup) {
+		group.Bind(testSourceHTTPInvalidMachineHandler)
+	})
+	if err := registrar.Err(); err == nil {
+		t.Fatal("expected incomplete machine route metadata to fail registration")
 	}
 }
 

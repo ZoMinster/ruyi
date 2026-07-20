@@ -5,6 +5,7 @@ package plugin
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -13,11 +14,32 @@ import (
 	"lina-core/internal/model/entity"
 	"lina-core/internal/service/plugin/internal/capabilityowner"
 	"lina-core/internal/service/plugin/internal/integration"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
 	"lina-core/pkg/plugin/pluginhost"
 )
+
+// AuthenticationProviderEnv returns host-stamped authentication-provider construction inputs.
+func (s *serviceImpl) AuthenticationProviderEnv(_ context.Context, pluginID string) authspi.ProviderEnv {
+	pluginID = strings.TrimSpace(pluginID)
+	env := authspi.ProviderEnv{PluginID: pluginID}
+	if s == nil || s.capabilities == nil {
+		return env
+	}
+	services := capabilityowner.ServicesForPlugin(s.capabilities, pluginID)
+	if services == nil {
+		return env
+	}
+	if authService := services.Auth(); authService != nil {
+		env.MachineCoordination = authService.MachineCoordination()
+	}
+	if pluginService := services.Plugins(); pluginService != nil {
+		env.Config = pluginService.Config()
+	}
+	return env
+}
 
 // RegisterHTTPRoutes registers callback-contributed HTTP routes for source plugins.
 func (s *serviceImpl) RegisterHTTPRoutes(
@@ -75,6 +97,7 @@ func (s *serviceImpl) ExternalIdentityProviderEnv(_ context.Context, pluginID st
 // RegisterSourcePluginProviderFactories registers compile-time source-plugin
 // provider declarations into the startup-owned shared provider managers.
 func (s *serviceImpl) RegisterSourcePluginProviderFactories(
+	authenticationManager *authspi.Manager,
 	tenantManager *tenantspi.Manager,
 	orgManager *orgspi.Manager,
 	externalIdentityManager *extidspi.Manager,
@@ -84,6 +107,20 @@ func (s *serviceImpl) RegisterSourcePluginProviderFactories(
 			continue
 		}
 		pluginID := definition.ID()
+		authenticationFactories := definition.GetAuthenticationProviderFactories()
+		authenticationSchemes := make([]string, 0, len(authenticationFactories))
+		for scheme := range authenticationFactories {
+			authenticationSchemes = append(authenticationSchemes, scheme)
+		}
+		sort.Strings(authenticationSchemes)
+		for _, scheme := range authenticationSchemes {
+			if authenticationManager == nil {
+				return gerror.New("plugin service requires authentication provider manager")
+			}
+			if err := authenticationManager.RegisterFactory(pluginID, scheme, authenticationFactories[scheme]); err != nil {
+				return err
+			}
+		}
 		if factory := definition.GetTenantProviderFactory(); factory != nil {
 			if tenantManager == nil {
 				return gerror.New("plugin service requires tenant provider manager")

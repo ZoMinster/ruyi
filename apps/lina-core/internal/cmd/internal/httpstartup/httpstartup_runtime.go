@@ -47,6 +47,8 @@ import (
 	"lina-core/internal/service/usermsg"
 	"lina-core/pkg/dialect"
 	"lina-core/pkg/logger"
+	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
@@ -55,27 +57,29 @@ import (
 // httpRuntime groups long-lived services that must be shared across HTTP
 // startup phases without re-constructing them in each route binding helper.
 type httpRuntime struct {
-	configSvc       config.Service       // configSvc reads static and runtime host settings shared by startup helpers.
-	coordinationSvc coordination.Service // coordinationSvc owns Redis-backed distributed coordination resources.
-	clusterSvc      cluster.Service      // clusterSvc owns primary-election lifecycle for clustered deployments.
-	pluginSvc       pluginsvc.Service    // pluginSvc is the unified plugin service entry shared by startup helpers.
-	authSvc         auth.Service         // authSvc owns JWT, session, and token-state flows.
-	bizCtxSvc       bizctx.Service       // bizCtxSvc owns request-scoped business context mutation.
-	i18nSvc         i18nsvc.Service      // i18nSvc owns runtime language bundles and localization.
-	orgSvc          orgspi.Service       // orgSvc owns organization capability and workspace projections.
-	roleSvc         role.Service         // roleSvc owns permission and access snapshot state.
-	dictSvc         dict.Service         // dictSvc owns dictionary lookup and maintenance.
-	fileSvc         file.Service         // fileSvc owns file metadata and storage operations.
-	menuSvc         menu.Service         // menuSvc owns menu tree and permission menu lookup.
-	sysConfigSvc    sysconfig.Service    // sysConfigSvc owns mutable runtime configuration records.
-	sysInfoSvc      sysinfosvc.Service   // sysInfoSvc owns runtime diagnostics projection.
-	userSvc         user.Service         // userSvc owns host user management operations.
-	userMsgSvc      usermsg.Service      // userMsgSvc owns current-user inbox operations.
-	apiDocSvc       apidoc.Service       // apiDocSvc builds the host-managed OpenAPI document.
-	jobRegistry     jobhandlersvc.Registry
-	jobMgmtSvc      jobmgmtsvc.Service
-	middlewareSvc   middleware.Service
-	cronSvc         cron.Service
+	configSvc           config.Service       // configSvc reads static and runtime host settings shared by startup helpers.
+	coordinationSvc     coordination.Service // coordinationSvc owns Redis-backed distributed coordination resources.
+	clusterSvc          cluster.Service      // clusterSvc owns primary-election lifecycle for clustered deployments.
+	pluginSvc           pluginsvc.Service    // pluginSvc is the unified plugin service entry shared by startup helpers.
+	authSvc             auth.Service         // authSvc owns JWT, session, and token-state flows.
+	bizCtxSvc           bizctx.Service       // bizCtxSvc owns request-scoped business context mutation.
+	i18nSvc             i18nsvc.Service      // i18nSvc owns runtime language bundles and localization.
+	orgSvc              orgspi.Service       // orgSvc owns organization capability and workspace projections.
+	roleSvc             role.Service         // roleSvc owns permission and access snapshot state.
+	dictSvc             dict.Service         // dictSvc owns dictionary lookup and maintenance.
+	fileSvc             file.Service         // fileSvc owns file metadata and storage operations.
+	menuSvc             menu.Service         // menuSvc owns menu tree and permission menu lookup.
+	sysConfigSvc        sysconfig.Service    // sysConfigSvc owns mutable runtime configuration records.
+	sysInfoSvc          sysinfosvc.Service   // sysInfoSvc owns runtime diagnostics projection.
+	userSvc             user.Service         // userSvc owns host user management operations.
+	userMsgSvc          usermsg.Service      // userMsgSvc owns current-user inbox operations.
+	apiDocSvc           apidoc.Service       // apiDocSvc builds the host-managed OpenAPI document.
+	jobRegistry         jobhandlersvc.Registry
+	jobMgmtSvc          jobmgmtsvc.Service
+	middlewareSvc       middleware.Service
+	cronSvc             cron.Service
+	authProviders       *authspi.Manager
+	routeAuthorizations authcap.RouteAuthorizationCatalogue
 }
 
 // pluginStartupConsistencyValidator is the narrow startup contract required to
@@ -255,15 +259,16 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 	// ========================================================================
 
 	var (
-		bizCtxSvc     = bizctx.New()
-		sessionStore  = session.NewDBStore()
-		cacheCoordSvc = cachecoord.Default(clusterSvc)
-		i18nSvc       = i18nsvc.New(bizCtxSvc, configSvc, cacheCoordSvc)
-		lockerSvc     = locker.New()
-		lockStore     = runtimeUpgradeLockStore(coordinationSvc)
-		pluginRuntime = pluginsvc.NewRuntimeDelegate()
-		kvCacheSvc    = kvcache.New(kvcache.WithProvider(kvCacheProvider))
-		objectStorage = storagesvc.New(storagesvc.Config{NamespaceRoots: map[string]string{
+		bizCtxSvc           = bizctx.New()
+		routeAuthorizations = authcap.NewRouteAuthorizationCatalogue()
+		sessionStore        = session.NewDBStore()
+		cacheCoordSvc       = cachecoord.DefaultWithCoordination(clusterSvc, coordinationSvc)
+		i18nSvc             = i18nsvc.New(bizCtxSvc, configSvc, cacheCoordSvc)
+		lockerSvc           = locker.New()
+		lockStore           = runtimeUpgradeLockStore(coordinationSvc)
+		pluginRuntime       = pluginsvc.NewRuntimeDelegate()
+		kvCacheSvc          = kvcache.New(kvcache.WithProvider(kvCacheProvider))
+		objectStorage       = storagesvc.New(storagesvc.Config{NamespaceRoots: map[string]string{
 			storagesvc.NamespaceFiles:   configSvc.GetUploadPath(ctx),
 			storagesvc.NamespacePlugins: configSvc.GetPluginDynamicStoragePath(ctx),
 		}})
@@ -274,6 +279,14 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		orgProviderManager              = orgspi.NewManager()
 		externalIdentityProviderManager = extidspi.NewManager()
 	)
+	authenticationProviderManager, err := authspi.NewManager(
+		pluginRuntime,
+		pluginRuntime.AuthenticationProviderEnv,
+	)
+	if err != nil {
+		closeHTTPCoordinationAfterInitError(ctx, coordinationSvc)
+		return nil, err
+	}
 	var (
 		orgCapSvc            = orgspi.New(orgProviderManager, pluginRuntime, pluginRuntime.OrgProviderEnv)
 		tenantSvc            = tenantspi.New(tenantProviderManager, pluginRuntime, pluginRuntime.TenantProviderEnv, bizCtxSvc)
@@ -290,7 +303,7 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		sysConfigSvc         = sysconfig.New(configSvc, i18nSvc)
 		userSvc              = user.New(authSvc, bizCtxSvc, i18nSvc, orgCapSvc, roleSvc, scopeSvc, tenantSvc)
 		userMsgSvc           = usermsg.New(bizCtxSvc, notifySvc, i18nSvc)
-		apiDocSvc            = apidoc.New(configSvc, bizCtxSvc, i18nSvc, pluginRuntime)
+		apiDocSvc            = apidoc.New(configSvc, bizCtxSvc, i18nSvc, pluginRuntime, routeAuthorizations)
 	)
 	// Bind the manager-backed external-identity provider seam. The bound value
 	// is the host manager-backed service (lazy, gated by plugin enablement), not
@@ -315,7 +328,7 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 	}
 	var (
 		jobMgmtSvc          = jobmgmtsvc.New(bizCtxSvc, configSvc, i18nSvc, jobRegistry, jobScheduler, scopeSvc)
-		middlewareSvc       = middleware.New(authSvc, bizCtxSvc, configSvc, i18nSvc, roleSvc, tenantSvc)
+		middlewareSvc       = middleware.New(authSvc, bizCtxSvc, configSvc, i18nSvc, roleSvc, tenantSvc, authenticationProviderManager)
 		hostConfigSvc       = pluginsvc.NewHostConfigService(configSvc)
 		pluginConfigFactory = pluginsvc.NewPluginConfigFactoryWithHostStaticConfig("", "", configSvc)
 	)
@@ -332,8 +345,11 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		hostConfigSvc,
 		scopeSvc,
 		cacheCoordSvc,
+		clusterSvc,
+		coordinationSvc,
 		i18nSvc,
 		pluginRuntime,
+		routeAuthorizations,
 		pluginRuntime,
 		userSvc,
 		fileSvc,
@@ -367,6 +383,8 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		tenantSvc,
 		pluginConfigFactory,
 		hostConfigSvc,
+		authenticationProviderManager,
+		routeAuthorizations,
 	)
 	if err != nil {
 		closeHTTPCoordinationAfterInitError(ctx, coordinationSvc)
@@ -377,6 +395,7 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		return nil, err
 	}
 	if err = pluginSvc.RegisterSourcePluginProviderFactories(
+		authenticationProviderManager,
 		tenantProviderManager,
 		orgProviderManager,
 		externalIdentityProviderManager,
@@ -398,27 +417,29 @@ func newHTTPRuntime(ctx context.Context, configSvc config.Service) (*httpRuntime
 		clusterSvc, jobRegistry, jobMgmtSvc, jobScheduler,
 	)
 	return &httpRuntime{
-		configSvc:       configSvc,
-		coordinationSvc: coordinationSvc,
-		clusterSvc:      clusterSvc,
-		pluginSvc:       pluginSvc,
-		authSvc:         authSvc,
-		bizCtxSvc:       bizCtxSvc,
-		i18nSvc:         i18nSvc,
-		orgSvc:          orgCapSvc,
-		roleSvc:         roleSvc,
-		dictSvc:         dictSvc,
-		fileSvc:         fileSvc,
-		menuSvc:         menuSvc,
-		sysConfigSvc:    sysConfigSvc,
-		sysInfoSvc:      sysInfoSvc,
-		userSvc:         userSvc,
-		userMsgSvc:      userMsgSvc,
-		apiDocSvc:       apiDocSvc,
-		jobRegistry:     jobRegistry,
-		jobMgmtSvc:      jobMgmtSvc,
-		middlewareSvc:   middlewareSvc,
-		cronSvc:         cronSvc,
+		configSvc:           configSvc,
+		coordinationSvc:     coordinationSvc,
+		clusterSvc:          clusterSvc,
+		pluginSvc:           pluginSvc,
+		authSvc:             authSvc,
+		bizCtxSvc:           bizCtxSvc,
+		i18nSvc:             i18nSvc,
+		orgSvc:              orgCapSvc,
+		roleSvc:             roleSvc,
+		dictSvc:             dictSvc,
+		fileSvc:             fileSvc,
+		menuSvc:             menuSvc,
+		sysConfigSvc:        sysConfigSvc,
+		sysInfoSvc:          sysInfoSvc,
+		userSvc:             userSvc,
+		userMsgSvc:          userMsgSvc,
+		apiDocSvc:           apiDocSvc,
+		jobRegistry:         jobRegistry,
+		jobMgmtSvc:          jobMgmtSvc,
+		middlewareSvc:       middlewareSvc,
+		cronSvc:             cronSvc,
+		authProviders:       authenticationProviderManager,
+		routeAuthorizations: routeAuthorizations,
 	}, nil
 }
 

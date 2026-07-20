@@ -24,6 +24,14 @@ type Metadata struct {
 	Tags []string
 	// Summary is the route summary declared by the dynamic plugin manifest.
 	Summary string
+	// Operation is the globally unique stable machine interface operation code.
+	Operation string
+	// Resource is the stable whole-resource type governed by the route.
+	Resource string
+	// Action is the resource-wide read or write action.
+	Action string
+	// Actors is the normalized comma-separated user/machine allowlist.
+	Actors string
 	// Meta contains additional route declaration metadata by source tag name.
 	Meta map[string]string
 	// ResponseBody stores the raw bridge response body for middleware-side logging.
@@ -99,6 +107,10 @@ func buildMetadata(runtimeState *dynamicRouteRuntimeState) *Metadata {
 		PublicPath: strings.TrimSpace(runtimeState.Match.PublicPath),
 		Tags:       append([]string(nil), runtimeState.Match.Route.Tags...),
 		Summary:    strings.TrimSpace(runtimeState.Match.Route.Summary),
+		Operation:  strings.TrimSpace(runtimeState.Match.Route.Operation),
+		Resource:   strings.TrimSpace(runtimeState.Match.Route.Resource),
+		Action:     strings.TrimSpace(runtimeState.Match.Route.Action),
+		Actors:     strings.TrimSpace(runtimeState.Match.Route.Actors),
 		Meta:       cloneStringMap(runtimeState.Match.Route.Meta),
 	}
 	return metadata

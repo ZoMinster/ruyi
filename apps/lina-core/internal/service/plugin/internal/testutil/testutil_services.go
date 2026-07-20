@@ -223,6 +223,8 @@ func newServicesWithInjected(
 		runtimeDependencyValidator{},
 		capabilitySvc,
 		wasmRuntime,
+		nil,
+		authcap.NewRouteAuthorizationCatalogue(),
 	)
 	integrationRuntimeSvc := injectedRuntimeSvc
 	if integrationRuntimeSvc == nil {
@@ -476,9 +478,9 @@ func (s *testCapabilities) APIDoc() apidoccap.Service { return testNoopAPIDoc{} 
 // non-nil ExternalLogin sub-capability so external-login plugins can register routes.
 func (s *testCapabilities) Auth() authcap.Service {
 	if s == nil {
-		return authcap.New(testNoopAuth{}, nil, testNoopExternalLogin{})
+		return authcap.New(testNoopAuth{}, nil, testNoopExternalLogin{}, nil)
 	}
-	return authcap.New(testNoopAuth{}, s.authz, testNoopExternalLogin{})
+	return authcap.New(testNoopAuth{}, s.authz, testNoopExternalLogin{}, nil)
 }
 
 // Users returns an empty user-domain service for plugin integration tests.

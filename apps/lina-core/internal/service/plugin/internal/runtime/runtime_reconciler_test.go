@@ -26,6 +26,7 @@ import (
 	"lina-core/internal/service/plugin/internal/plugintypes"
 	"lina-core/internal/service/plugin/internal/store"
 	"lina-core/internal/service/session"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginbridge/protocol"
 	"lina-core/pkg/statusflag"
 )
@@ -414,6 +415,8 @@ func newRuntimeSafetyServices() *runtimeSafetyServices {
 		nil,
 		nil,
 		nil,
+		nil,
+		authcap.NewRouteAuthorizationCatalogue(),
 	).(*serviceImpl)
 	lifecycleHook.service = runtimeSvc
 	runtimeSvc.reconcilerRevisionCtrl = newTestReconcilerRevisionController(

@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-07-20T12:09:45.468565+00:00",
+  "nodes": {
+    "apps_lina_plugins_linapro_auth_aksk_backend_internal_service_client_client_integration_test": {
+      "code_fingerprint": "9a3b5e311d0c611f28bbe78d6e68f7ae1cd6b458fa953aa2b72f51fc4587c41a",
+      "label": "client_integration_test.go",
+      "last": "2026-07-19T07:26:06.096262+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-19T07:26:06.096262+00:00",
+          "outcome": "useful",
+          "q": "现在进入机器访问会报错，新建客户端也会报错，你看看"
+        }
+      ],
+      "score": 0.97272274,
+      "source_file": "apps/lina-plugins/linapro-auth-aksk/backend/internal/service/client/client_integration_test.go",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_lina_plugins_linapro_auth_aksk_frontend_pages_machine_access_client": {
+      "code_fingerprint": "b1d6d3048c857a5bffd8b34e51c8082a9b51c350a4aa4897cfaa02e1ca336168",
+      "label": "machine-access-client.ts",
+      "last": "2026-07-19T07:26:06.096262+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-19T07:26:06.096262+00:00",
+          "outcome": "useful",
+          "q": "现在进入机器访问会报错，新建客户端也会报错，你看看"
+        }
+      ],
+      "score": 0.97272274,
+      "source_file": "apps/lina-plugins/linapro-auth-aksk/frontend/pages/machine-access-client.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_lina_plugins_linapro_auth_aksk_hack_tests_pages_machineaccesspage_machineaccesspage": {
+      "code_fingerprint": "03c860e995fc89dae4077a9f443558b61424ed7f9bd95575766cefe000d2d221",
+      "label": "MachineAccessPage",
+      "last": "2026-07-19T07:26:06.096262+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-19T07:26:06.096262+00:00",
+          "outcome": "useful",
+          "q": "现在进入机器访问会报错，新建客户端也会报错，你看看"
+        }
+      ],
+      "score": 0.97272274,
+      "source_file": "apps/lina-plugins/linapro-auth-aksk/hack/tests/pages/MachineAccessPage.ts",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

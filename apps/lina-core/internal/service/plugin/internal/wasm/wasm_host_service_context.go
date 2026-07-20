@@ -41,15 +41,37 @@ func bizCtxServiceForHostCall(hcc *hostCallContext) bizctxcap.Service {
 
 // dispatchRouteHostService routes current dynamic-route metadata reads.
 func dispatchRouteHostService(
-	_ context.Context,
+	ctx context.Context,
 	hcc *hostCallContext,
 	method string,
-	_ []byte,
+	payload []byte,
 ) *bridgehostcall.HostCallResponseEnvelope {
-	if method != bridgehostservice.HostServiceMethodRouteMetadataGet {
+	switch method {
+	case bridgehostservice.HostServiceMethodRouteMetadataGet:
+		return capabilityJSONResponse(routeMetadataFromHostCall(hcc))
+	case bridgehostservice.HostServiceMethodRouteMachineAuthorizationsList:
+		service := routeServiceForHostCall(hcc)
+		if service == nil {
+			return domainServiceNotScoped("route")
+		}
+		var request routecap.MachineAuthorizationListInput
+		if err := decodeCapabilityJSONRequest(payload, &request); err != nil {
+			return invalidCapabilityRequest(err)
+		}
+		result, err := service.ListMachineAuthorizations(ctx, request)
+		return domainCapabilityResult(result, err)
+	default:
 		return domainMethodNotFound("route", method)
 	}
-	return capabilityJSONResponse(routeMetadataFromHostCall(hcc))
+}
+
+// routeServiceForHostCall resolves the route capability for one dynamic guest.
+func routeServiceForHostCall(hcc *hostCallContext) routecap.Service {
+	services := capabilityServicesForHostCall(hcc)
+	if services == nil {
+		return nil
+	}
+	return services.Route()
 }
 
 // routeMetadataFromHostCall projects trusted host-call context into route metadata.

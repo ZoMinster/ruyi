@@ -229,6 +229,11 @@ var catalog = []ServiceDescriptor{
 			hostMethod(HostServiceMethodAuthzHasPermission, "HostServiceMethodAuthzHasPermission", "host:auth:authz", "HostServiceJSONRequest", "HostServiceJSONResponse"),
 			hostMethod(HostServiceMethodAuthzIsPlatformAdmin, "HostServiceMethodAuthzIsPlatformAdmin", "host:auth:authz", "HostServiceJSONRequest", "HostServiceJSONResponse"),
 			hostMethod(HostServiceMethodAuthzReplaceRolePermissions, "HostServiceMethodAuthzReplaceRolePermissions", "host:auth:authz", "HostServiceJSONRequest", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodAuthMachineCoordinationConfigure, "HostServiceMethodAuthMachineCoordinationConfigure", "host:auth:machine_coordination", "HostServiceJSONRequest", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodAuthMachineCoordinationClusterEnabled, "HostServiceMethodAuthMachineCoordinationClusterEnabled", "host:auth:machine_coordination", "", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodAuthMachineCoordinationCurrentRevision, "HostServiceMethodAuthMachineCoordinationCurrentRevision", "host:auth:machine_coordination", "HostServiceJSONRequest", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodAuthMachineCoordinationMarkChanged, "HostServiceMethodAuthMachineCoordinationMarkChanged", "host:auth:machine_coordination", "HostServiceJSONRequest", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodAuthMachineCoordinationConsumeSharedReplay, "HostServiceMethodAuthMachineCoordinationConsumeSharedReplay", "host:auth:machine_coordination", "HostServiceJSONRequest", "HostServiceJSONResponse"),
 		},
 	},
 	{
@@ -348,6 +353,7 @@ var catalog = []ServiceDescriptor{
 		ResourceKind: ResourceKindNone,
 		Methods: []MethodDescriptor{
 			hostMethod(HostServiceMethodRouteMetadataGet, "HostServiceMethodRouteMetadataGet", "host:route", "", "HostServiceJSONResponse"),
+			hostMethod(HostServiceMethodRouteMachineAuthorizationsList, "HostServiceMethodRouteMachineAuthorizationsList", "host:route", "HostServiceJSONRequest", "HostServiceJSONResponse"),
 		},
 	},
 	{

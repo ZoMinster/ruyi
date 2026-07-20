@@ -6,11 +6,14 @@ import (
 	"strings"
 
 	"github.com/gogf/gf/v2/errors/gerror"
+
+	"lina-core/pkg/plugin/capability/authcap"
 )
 
 // ValidateRouteContracts validates one plugin's route declarations in-place.
 func ValidateRouteContracts(pluginID string, routes []*RouteContract) error {
 	seen := make(map[string]struct{}, len(routes))
+	seenOperations := make(map[authcap.OperationCode]struct{}, len(routes))
 	for _, route := range routes {
 		if route == nil {
 			return gerror.New("dynamic route contract cannot be nil")
@@ -51,6 +54,25 @@ func ValidateRouteContracts(pluginID string, routes []*RouteContract) error {
 			if strings.TrimSpace(parts[1]) == "" || strings.TrimSpace(parts[2]) == "" {
 				return gerror.Newf("dynamic route permission resource and action cannot be empty: %s", route.Permission)
 			}
+		}
+		authorization, err := authcap.ParseRouteAuthorization(
+			authcap.RouteOwnerKindDynamicPlugin,
+			pluginID,
+			route.Method,
+			route.Path,
+			route.Operation,
+			route.Resource,
+			route.Action,
+			route.Actors,
+		)
+		if err != nil {
+			return gerror.Wrapf(err, "dynamic route authorization metadata is invalid: %s %s", route.Method, route.Path)
+		}
+		if authorization.AllowsActor(authcap.ActorKindMachine) {
+			if _, exists := seenOperations[authorization.Operation]; exists {
+				return gerror.Newf("dynamic route operation cannot be duplicated: %s", authorization.Operation)
+			}
+			seenOperations[authorization.Operation] = struct{}{}
 		}
 		key := route.Method + " " + route.Path
 		if _, ok := seen[key]; ok {
@@ -117,6 +139,10 @@ func normalizeRouteContract(route *RouteContract) {
 	route.Description = strings.TrimSpace(route.Description)
 	route.Access = strings.ToLower(strings.TrimSpace(route.Access))
 	route.Permission = strings.TrimSpace(route.Permission)
+	route.Operation = strings.TrimSpace(route.Operation)
+	route.Resource = strings.TrimSpace(route.Resource)
+	route.Action = strings.ToLower(strings.TrimSpace(route.Action))
+	route.Actors = normalizeRouteActors(route.Actors)
 	route.Meta = normalizeRouteMeta(route.Meta)
 	route.RequestType = strings.TrimSpace(route.RequestType)
 	if len(route.Tags) > 0 {
@@ -130,6 +156,20 @@ func normalizeRouteContract(route *RouteContract) {
 		}
 		route.Tags = tags
 	}
+}
+
+// normalizeRouteActors trims and lowercases a comma-separated actor list while
+// preserving declaration order for stable serialization.
+func normalizeRouteActors(value string) string {
+	parts := strings.Split(value, ",")
+	normalized := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.ToLower(strings.TrimSpace(part))
+		if trimmed != "" {
+			normalized = append(normalized, trimmed)
+		}
+	}
+	return strings.Join(normalized, ",")
 }
 
 // normalizeRouteMeta trims plugin-defined route metadata and drops empty keys or values.

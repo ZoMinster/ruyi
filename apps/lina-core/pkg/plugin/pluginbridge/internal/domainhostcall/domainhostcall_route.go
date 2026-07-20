@@ -27,4 +27,19 @@ func (s routeService) GetMetadata(context.Context) *routecap.Metadata {
 	return &out
 }
 
+// ListMachineAuthorizations returns the host-owned bounded machine route catalog.
+func (s routeService) ListMachineAuthorizations(
+	_ context.Context,
+	input routecap.MachineAuthorizationListInput,
+) (*routecap.MachineAuthorizationCatalogue, error) {
+	var out routecap.MachineAuthorizationCatalogue
+	err := s.callJSONRequest(
+		protocol.HostServiceRoute,
+		protocol.HostServiceMethodRouteMachineAuthorizationsList,
+		input,
+		&out,
+	)
+	return &out, err
+}
+
 var _ routecap.Service = (*routeService)(nil)

@@ -12,6 +12,7 @@ import (
 	i18nsvc "lina-core/internal/service/i18n"
 	"lina-core/internal/service/role"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 )
 
 // Permission middleware constants define metadata tag names, wildcard grants,
@@ -19,6 +20,10 @@ import (
 const (
 	staticPermissionMetaTag  = "permission"
 	staticPermissionWildcard = "*:*:*"
+	staticOperationMetaTag   = "operation"
+	staticResourceMetaTag    = "resource"
+	staticActionMetaTag      = "action"
+	staticActorsMetaTag      = "actors"
 )
 
 // staticPermissionContextKey stores manually declared permissions for routes
@@ -44,6 +49,16 @@ func (s *serviceImpl) Permission(r *ghttp.Request) {
 		return
 	}
 
+	businessCtx := s.bizCtxSvc.Get(r.Context())
+	if businessCtx != nil && businessCtx.Actor.Kind == authcap.ActorKindMachine {
+		s.authorizeMachineRoute(r, businessCtx.Actor)
+		return
+	}
+	if !routeAllowsActor(r, authcap.ActorKindUser) {
+		writePermissionError(r, s.i18nSvc, http.StatusForbidden, bizerr.NewCode(CodeMiddlewareHTTPForbidden))
+		return
+	}
+
 	requiredPermissions := extractDeclaredPermissions(r)
 	if len(requiredPermissions) == 0 {
 		// Build-time audit tests ensure protected static APIs declare permissions.
@@ -52,7 +67,6 @@ func (s *serviceImpl) Permission(r *ghttp.Request) {
 		return
 	}
 
-	businessCtx := s.bizCtxSvc.Get(r.Context())
 	if businessCtx == nil || businessCtx.UserId <= 0 {
 		writePermissionError(
 			r,
@@ -95,6 +109,69 @@ func (s *serviceImpl) Permission(r *ghttp.Request) {
 			CodeMiddlewarePermissionDeniedRequired,
 			bizerr.P("permissions", strings.Join(requiredPermissions, ", ")),
 		),
+	)
+}
+
+// authorizeMachineRoute enforces explicit actor opt-in plus exact operation and
+// resource-wide access grants. User permission tags are intentionally ignored.
+func (s *serviceImpl) authorizeMachineRoute(r *ghttp.Request, actor authcap.Actor) {
+	declaration, err := extractRouteAuthorization(r)
+	if err != nil || !declaration.AllowsActor(authcap.ActorKindMachine) {
+		writePermissionError(r, s.i18nSvc, http.StatusForbidden, bizerr.NewCode(CodeMiddlewareHTTPForbidden))
+		return
+	}
+	value := r.GetCtxVar(machineAuthorizationResultContextKey).Val()
+	result, ok := value.(authcap.AuthenticationResult)
+	if !ok || result.Actor != actor || !result.Authorization.Allows(authcap.AuthorizationRequest{
+		Operation: declaration.Operation,
+		Resource:  declaration.Resource,
+		Access:    declaration.Access,
+	}) {
+		writePermissionError(r, s.i18nSvc, http.StatusForbidden, bizerr.NewCode(CodeMiddlewareHTTPForbidden))
+		return
+	}
+	r.Middleware.Next()
+}
+
+// routeAllowsActor parses the current DTO route declaration and defaults to
+// user-only when actors metadata is absent.
+func routeAllowsActor(r *ghttp.Request, actor authcap.ActorKind) bool {
+	declaration, err := extractRouteAuthorization(r)
+	return err == nil && declaration.AllowsActor(actor)
+}
+
+// extractRouteAuthorization reads the current strict handler's machine route
+// metadata. Raw routes have no tags and therefore parse as user-only.
+func extractRouteAuthorization(r *ghttp.Request) (authcap.RouteAuthorization, error) {
+	var (
+		operation string
+		resource  string
+		action    string
+		actors    string
+	)
+	if r != nil {
+		if handler := r.GetServeHandler(); handler != nil {
+			operation = handler.GetMetaTag(staticOperationMetaTag)
+			resource = handler.GetMetaTag(staticResourceMetaTag)
+			action = handler.GetMetaTag(staticActionMetaTag)
+			actors = handler.GetMetaTag(staticActorsMetaTag)
+		}
+	}
+	method := ""
+	path := ""
+	if r != nil {
+		method = r.Method
+		path = r.URL.Path
+	}
+	return authcap.ParseRouteAuthorization(
+		authcap.RouteOwnerKindHost,
+		"request",
+		method,
+		path,
+		operation,
+		resource,
+		action,
+		actors,
 	)
 }
 

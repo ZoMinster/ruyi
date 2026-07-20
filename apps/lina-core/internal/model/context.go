@@ -3,8 +3,14 @@
 
 package model
 
+import "lina-core/pkg/plugin/capability/authcap"
+
 // Context is the business context for each request.
 type Context struct {
+	// Actor is the host-trusted authentication principal. Machine actors carry
+	// no user, role, or online-session semantics.
+	Actor authcap.Actor `json:"actor"`
+
 	// TokenId is the authenticated session or access-token identifier for the
 	// current request.
 	// Example: "session_20260507153000_admin".

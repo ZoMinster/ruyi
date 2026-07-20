@@ -918,6 +918,10 @@ var routeContractTagKeys = map[string]struct{}{
 	"description": {},
 	"access":      {},
 	"permission":  {},
+	"operation":   {},
+	"resource":    {},
+	"action":      {},
+	"actors":      {},
 }
 
 func extractRouteContractsFromFile(fileNode *ast.File) ([]*protocol.RouteContract, error) {
@@ -959,6 +963,10 @@ func extractRouteContractsFromFile(fileNode *ast.File) ([]*protocol.RouteContrac
 					Description: metaValues["dc"],
 					Access:      metaValues["access"],
 					Permission:  metaValues["permission"],
+					Operation:   metaValues["operation"],
+					Resource:    metaValues["resource"],
+					Action:      metaValues["action"],
+					Actors:      metaValues["actors"],
 					Meta:        buildRouteContractMeta(metaValues),
 					RequestType: strings.TrimSpace(typeSpec.Name.Name),
 				}

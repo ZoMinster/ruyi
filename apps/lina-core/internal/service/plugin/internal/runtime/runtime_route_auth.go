@@ -5,6 +5,10 @@ package runtime
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +17,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	rolesvc "lina-core/internal/service/role"
+	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	tokencap "lina-core/pkg/plugin/capability/authcap/token"
 	bridgecontract "lina-core/pkg/plugin/pluginbridge/contract"
 	bridgecodec "lina-core/pkg/plugin/pluginbridge/protocol"
@@ -56,15 +62,21 @@ func (s *serviceImpl) buildDynamicRouteIdentitySnapshot(
 	match *dynamicRouteMatch,
 	request *ghttp.Request,
 ) (*bridgecontract.IdentitySnapshotV1, *bridgecontract.BridgeResponseEnvelopeV1, error) {
-	tokenHeader := strings.TrimSpace(request.GetHeader("Authorization"))
-	if tokenHeader == "" {
+	scheme, credential, ok := parseDynamicAuthorizationHeader(request.GetHeader("Authorization"))
+	if !ok {
 		return nil, bridgecodec.NewUnauthorizedResponse("Missing Authorization header"), nil
 	}
-	tokenString := strings.TrimSpace(strings.TrimPrefix(tokenHeader, "Bearer "))
-	if tokenString == "" || tokenString == tokenHeader {
-		return nil, bridgecodec.NewUnauthorizedResponse("Invalid bearer token"), nil
+	declaration, err := dynamicRouteAuthorization(match)
+	if err != nil {
+		return nil, bridgecodec.NewForbiddenResponse("Permission denied"), nil
 	}
-	claims, err := s.parseDynamicRouteToken(ctx, tokenString)
+	if !strings.EqualFold(scheme, "Bearer") {
+		return s.buildDynamicMachineIdentitySnapshot(ctx, declaration, request, scheme, credential)
+	}
+	if !declaration.AllowsActor(authcap.ActorKindUser) {
+		return nil, bridgecodec.NewForbiddenResponse("Permission denied"), nil
+	}
+	claims, err := s.parseDynamicRouteToken(ctx, credential)
 	if err != nil {
 		return nil, bridgecodec.NewUnauthorizedResponse(err.Error()), nil
 	}
@@ -106,6 +118,9 @@ func (s *serviceImpl) buildDynamicRouteIdentitySnapshot(
 	}
 
 	return &bridgecontract.IdentitySnapshotV1{
+		ActorKind:            string(authcap.ActorKindUser),
+		SubjectID:            strconv.Itoa(claims.UserId),
+		CredentialID:         claims.TokenId,
 		TokenID:              claims.TokenId,
 		TenantId:             int32(claims.TenantId),
 		UserID:               int32(claims.UserId),
@@ -121,6 +136,122 @@ func (s *serviceImpl) buildDynamicRouteIdentitySnapshot(
 		UnsupportedDataScope: int32(accessContext.UnsupportedDataScope),
 		IsSuperAdmin:         accessContext.IsSuperAdmin,
 	}, nil, nil
+}
+
+// buildDynamicMachineIdentitySnapshot authenticates one exact non-Bearer
+// scheme and enforces route actor, operation, and resource grants.
+func (s *serviceImpl) buildDynamicMachineIdentitySnapshot(
+	ctx context.Context,
+	declaration authcap.RouteAuthorization,
+	request *ghttp.Request,
+	scheme string,
+	credential string,
+) (*bridgecontract.IdentitySnapshotV1, *bridgecontract.BridgeResponseEnvelopeV1, error) {
+	if s == nil || s.authProviders == nil {
+		return nil, bridgecodec.NewUnauthorizedResponse("Authentication provider unavailable"), nil
+	}
+	result, err := s.authProviders.Authenticate(
+		ctx,
+		scheme,
+		buildDynamicProviderAuthenticationRequest(request, scheme, credential),
+	)
+	if err != nil || result.Actor.Kind != authcap.ActorKindMachine ||
+		strings.TrimSpace(result.Actor.SubjectID) == "" ||
+		strings.TrimSpace(result.Actor.CredentialID) == "" ||
+		result.Actor.TenantID < 0 {
+		return nil, bridgecodec.NewUnauthorizedResponse("Invalid machine credential"), nil
+	}
+	if !declaration.AllowsActor(authcap.ActorKindMachine) || !result.Authorization.Allows(authcap.AuthorizationRequest{
+		Operation: declaration.Operation,
+		Resource:  declaration.Resource,
+		Access:    declaration.Access,
+	}) {
+		return nil, bridgecodec.NewForbiddenResponse("Permission denied"), nil
+	}
+	if s.userCtx != nil {
+		s.userCtx.SetActor(ctx, result.Actor)
+	}
+	return &bridgecontract.IdentitySnapshotV1{
+		ActorKind:    string(result.Actor.Kind),
+		SubjectID:    result.Actor.SubjectID,
+		CredentialID: result.Actor.CredentialID,
+		TenantId:     int32(result.Actor.TenantID),
+	}, nil, nil
+}
+
+// dynamicRouteAuthorization parses the matched contract into the common route
+// actor and machine authorization projection.
+func dynamicRouteAuthorization(match *dynamicRouteMatch) (authcap.RouteAuthorization, error) {
+	if match == nil || match.Route == nil {
+		return authcap.RouteAuthorization{}, gerror.New("dynamic route match is unavailable")
+	}
+	return authcap.ParseRouteAuthorization(
+		authcap.RouteOwnerKindDynamicPlugin,
+		match.PluginID,
+		match.Route.Method,
+		match.Route.Path,
+		match.Route.Operation,
+		match.Route.Resource,
+		match.Route.Action,
+		match.Route.Actors,
+	)
+}
+
+func parseDynamicAuthorizationHeader(value string) (scheme string, credential string, ok bool) {
+	trimmed := strings.TrimSpace(value)
+	separator := strings.IndexAny(trimmed, " \t")
+	if separator <= 0 {
+		return "", "", false
+	}
+	scheme = strings.TrimSpace(trimmed[:separator])
+	credential = strings.TrimSpace(trimmed[separator+1:])
+	if _, err := authspi.NormalizeScheme(scheme); err != nil || credential == "" {
+		return "", "", false
+	}
+	return scheme, credential, true
+}
+
+func buildDynamicProviderAuthenticationRequest(
+	request *ghttp.Request,
+	scheme string,
+	credential string,
+) authcap.AuthenticationRequest {
+	query := make([]authcap.QueryParameter, 0)
+	queryValues := request.URL.Query()
+	queryKeys := make([]string, 0, len(queryValues))
+	for key := range queryValues {
+		queryKeys = append(queryKeys, key)
+	}
+	sort.Strings(queryKeys)
+	for _, key := range queryKeys {
+		for _, value := range queryValues[key] {
+			query = append(query, authcap.QueryParameter{Key: key, Value: value})
+		}
+	}
+	headerNames := make([]string, 0, len(request.Request.Header))
+	for name := range request.Request.Header {
+		headerNames = append(headerNames, name)
+	}
+	sort.Strings(headerNames)
+	headers := make([]authcap.Header, 0, len(headerNames))
+	for _, name := range headerNames {
+		headers = append(headers, authcap.Header{Name: name, Values: append([]string(nil), request.Request.Header.Values(name)...)})
+	}
+	bodyHash := sha256.Sum256(request.GetBody())
+	escapedPath := request.URL.EscapedPath()
+	if escapedPath == "" {
+		escapedPath = "/"
+	}
+	return authcap.NewAuthenticationRequest(
+		scheme,
+		credential,
+		request.Method,
+		escapedPath,
+		query,
+		headers,
+		hex.EncodeToString(bodyHash[:]),
+		request.Request.RemoteAddr,
+	)
 }
 
 // parseDynamicRouteToken validates the bearer token and extracts route claims.

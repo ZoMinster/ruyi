@@ -5,6 +5,8 @@ package bizctxcap
 import (
 	"context"
 	"testing"
+
+	"lina-core/pkg/plugin/capability/authcap"
 )
 
 // TestWithCurrentContextProvidesPluginVisibleSnapshot verifies source-plugin
@@ -28,6 +30,37 @@ func TestWithCurrentContextProvidesPluginVisibleSnapshot(t *testing.T) {
 	}
 	if len(current.Permissions) != 1 || current.Permissions[0] != "system:user:list" {
 		t.Fatalf("expected cloned permissions, got %+v", current.Permissions)
+	}
+}
+
+// TestWithCurrentContextNormalizesMachineActor verifies a host-projected
+// machine context cannot carry forged user, permission, or bypass state.
+func TestWithCurrentContextNormalizesMachineActor(t *testing.T) {
+	current := CurrentFromContext(WithCurrentContext(context.Background(), CurrentContext{
+		Actor: authcap.Actor{
+			Kind:         authcap.ActorKindMachine,
+			SubjectID:    "machine-client-1",
+			CredentialID: "AKIDEXAMPLE",
+			TenantID:     99,
+		},
+		TokenID:        "forged-token",
+		UserID:         1,
+		Username:       "forged-user",
+		TenantID:       42,
+		Permissions:    []string{"*:*:*"},
+		DataScope:      1,
+		IsSuperAdmin:   true,
+		PlatformBypass: true,
+	}))
+
+	if current.Actor.TenantID != 42 || current.TenantID != 42 {
+		t.Fatalf("expected host context tenant to win, got %+v", current)
+	}
+	if current.UserID != 0 || current.TokenID != "" || current.Username != "" {
+		t.Fatalf("expected machine context to clear user fields, got %+v", current)
+	}
+	if len(current.Permissions) != 0 || current.DataScope != 0 || current.IsSuperAdmin || current.PlatformBypass {
+		t.Fatalf("expected machine context to clear user authorization fields, got %+v", current)
 	}
 }
 

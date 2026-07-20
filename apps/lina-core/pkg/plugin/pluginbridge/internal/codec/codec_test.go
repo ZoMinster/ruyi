@@ -90,6 +90,52 @@ func TestValidateRouteContractsAllowsPluginOwnedPathShapes(t *testing.T) {
 	}
 }
 
+// TestValidateRouteContractsRejectsInvalidMachineAuthorization verifies the
+// artifact boundary rejects incomplete and unknown machine route metadata.
+func TestValidateRouteContractsRejectsInvalidMachineAuthorization(t *testing.T) {
+	testCases := []struct {
+		name  string
+		route *RouteContract
+	}{
+		{
+			name: "missing resource",
+			route: &RouteContract{Path: "/records", Method: http.MethodGet, RequestType: "ListReq",
+				Operation: "records.list", Action: "read", Actors: "machine"},
+		},
+		{
+			name: "unknown action",
+			route: &RouteContract{Path: "/records", Method: http.MethodGet, RequestType: "ListReq",
+				Operation: "records.list", Resource: "records", Action: "execute", Actors: "machine"},
+		},
+		{
+			name: "unknown actor",
+			route: &RouteContract{Path: "/records", Method: http.MethodGet, RequestType: "ListReq",
+				Operation: "records.list", Resource: "records", Action: "read", Actors: "service"},
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateRouteContracts("linapro-demo-dynamic", []*RouteContract{testCase.route}); err == nil {
+				t.Fatal("expected invalid machine route metadata to fail")
+			}
+		})
+	}
+}
+
+// TestValidateRouteContractsRejectsDuplicateMachineOperation verifies one
+// dynamic artifact cannot publish the same operation on multiple routes.
+func TestValidateRouteContractsRejectsDuplicateMachineOperation(t *testing.T) {
+	routes := []*RouteContract{
+		{Path: "/records", Method: http.MethodGet, RequestType: "ListReq", Operation: "records.read", Resource: "records", Action: "read", Actors: "machine"},
+		{Path: "/records/{id}", Method: http.MethodGet, RequestType: "GetReq", Operation: "records.read", Resource: "records", Action: "read", Actors: "user,machine"},
+	}
+	if err := ValidateRouteContracts("linapro-demo-dynamic", routes); err == nil {
+		t.Fatal("expected duplicate machine operation to fail")
+	}
+}
+
 // TestEncodeDecodeRequestEnvelopeRoundTrip verifies the manual protobuf codec
 // preserves nested route, request, and identity snapshots.
 func TestEncodeDecodeRequestEnvelopeRoundTrip(t *testing.T) {
@@ -128,6 +174,9 @@ func TestEncodeDecodeRequestEnvelopeRoundTrip(t *testing.T) {
 			Body: []byte(`{"hello":"world"}`),
 		},
 		Identity: &IdentitySnapshotV1{
+			ActorKind:       "machine",
+			SubjectID:       "machine-client-1",
+			CredentialID:    "AKIDEXAMPLE",
 			TokenID:         "token-1",
 			TenantId:        22,
 			UserID:          1,
@@ -163,6 +212,11 @@ func TestEncodeDecodeRequestEnvelopeRoundTrip(t *testing.T) {
 	}
 	if output.Identity == nil || !output.Identity.IsSuperAdmin {
 		t.Fatalf("unexpected identity snapshot: %#v", output.Identity)
+	}
+	if output.Identity.ActorKind != input.Identity.ActorKind ||
+		output.Identity.SubjectID != input.Identity.SubjectID ||
+		output.Identity.CredentialID != input.Identity.CredentialID {
+		t.Fatalf("unexpected actor snapshot: %#v", output.Identity)
 	}
 	if output.Identity.DataScope != input.Identity.DataScope {
 		t.Fatalf("unexpected identity data scope: %#v", output.Identity)

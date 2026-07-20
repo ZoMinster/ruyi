@@ -22,6 +22,12 @@ func (s *serviceImpl) ReconcileRuntimePlugins(ctx context.Context) error {
 	return s.runtimeSvc.ReconcileRuntimePlugins(ctx)
 }
 
+// SyncDynamicRouteAuthorizations rebuilds installed dynamic route metadata in
+// the shared global authorization catalog.
+func (s *serviceImpl) SyncDynamicRouteAuthorizations(ctx context.Context) error {
+	return s.runtimeSvc.SyncDynamicRouteAuthorizations(ctx)
+}
+
 // ListRuntimeStates returns public plugin runtime states for shell slot rendering.
 func (s *serviceImpl) ListRuntimeStates(ctx context.Context) (*RuntimeStateListOutput, error) {
 	if err := s.ensureRuntimeCacheFresh(ctx); err != nil {

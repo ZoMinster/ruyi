@@ -13,6 +13,8 @@ import (
 	"lina-core/internal/service/apidoc"
 	"lina-core/internal/service/auth"
 	"lina-core/internal/service/cachecoord"
+	"lina-core/internal/service/cluster"
+	"lina-core/internal/service/coordination"
 	"lina-core/internal/service/datascope"
 	"lina-core/internal/service/dict"
 	filesvc "lina-core/internal/service/file"
@@ -80,6 +82,8 @@ type directory struct {
 type pluginStateLookup interface {
 	// IsEnabled reports whether one plugin is enabled in the current scope.
 	IsEnabled(ctx context.Context, pluginID string) bool
+	// ResolveBusinessEntryEnablement resolves a bounded plugin set without N+1 reads.
+	ResolveBusinessEntryEnablement(ctx context.Context, pluginIDs []string) (map[string]bool, error)
 	// IsProviderEnabled reports whether one plugin may serve provider calls.
 	IsProviderEnabled(ctx context.Context, pluginID string) bool
 	// IsEnabledAuthoritative reports persisted plugin enablement bypassing local snapshots.
@@ -110,8 +114,11 @@ func New(
 	hostConfigSvc hostconfigcap.Service,
 	scopeSvc datascope.Service,
 	cacheCoordSvc cachecoord.Service,
+	clusterSvc cluster.Service,
+	coordinationSvc coordination.Service,
 	i18nSvc i18nsvc.Service,
 	pluginStateSvc pluginStateLookup,
+	routeAuthorizations authcap.RouteAuthorizationCatalogue,
 	pluginLifecycleSvc plugincap.LifecycleService,
 	userSvc usersvc.Service,
 	fileSvc filesvc.Service,
@@ -146,6 +153,12 @@ func New(
 	if cacheCoordSvc == nil {
 		return nil, gerror.New("create plugin host services failed: cachecoord service is nil")
 	}
+	if pluginStateSvc == nil {
+		return nil, gerror.New("create plugin host services failed: plugin state service is nil")
+	}
+	if routeAuthorizations == nil {
+		return nil, gerror.New("create plugin host services failed: route authorization catalog is nil")
+	}
 	if tenantSvc == nil {
 		return nil, gerror.New("create plugin host services failed: tenant service is nil")
 	}
@@ -159,6 +172,7 @@ func New(
 		userDomain         = usercapadapter.NewCapabilityAdapter(userSvc, tenantSvc, scopeSvc, bizCtxAdapter)
 		tokenDomain        = newAuthAdapter(authSvc)
 		externalLoginBase  = newExternalLoginAdapter(authSvc, pluginStateSvc)
+		machineCoordBase   = newMachineCoordinationAdapter(clusterSvc, coordinationSvc, cacheCoordSvc)
 		authzDomain        = role.NewCapabilityAdapter(roleAccessSvc, bizCtxAdapter, cacheCoordSvc)
 		dictDomain         = dict.NewCapabilityAdapter(tenantFilterSvc, i18nAdapter, cacheCoordSvc)
 		sysConfigDomain    = hostconfigadapter.NewSysConfigCapabilityAdapter(tenantFilterSvc, cacheCoordSvc)
@@ -174,7 +188,7 @@ func New(
 	)
 	return &directory{
 		apiDoc:          newAPIDocAdapter(apiDocSvc),
-		auth:            authcap.New(tokenDomain, authzDomain, externalLoginBase),
+		auth:            authcap.New(tokenDomain, authzDomain, externalLoginBase, machineCoordBase),
 		users:           userDomain,
 		bizCtx:          bizCtxAdapter,
 		cache:           kvCacheSvc,
@@ -188,7 +202,7 @@ func New(
 		notifications:   notificationDomain,
 		org:             orgSvc,
 		plugins:         pluginDomain,
-		route:           newRouteAdapter(),
+		route:           newRouteAdapter(routeAuthorizations, pluginStateSvc),
 		sessions:        sessionDomain,
 		storageRuntime:  storageRuntime,
 		storageProvider: localStorageProvider,

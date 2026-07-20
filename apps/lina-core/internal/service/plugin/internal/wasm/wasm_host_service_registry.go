@@ -327,6 +327,11 @@ func registerAuthHostService(registry *hostServiceDispatchRegistry) error {
 		bridgehostservice.HostServiceMethodAuthzHasPermission,
 		bridgehostservice.HostServiceMethodAuthzIsPlatformAdmin,
 		bridgehostservice.HostServiceMethodAuthzReplaceRolePermissions,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationConfigure,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationClusterEnabled,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationCurrentRevision,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationMarkChanged,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationConsumeSharedReplay,
 	}, func(ctx context.Context, hcc *hostCallContext, input hostServiceDispatchContext) *bridgehostcall.HostCallResponseEnvelope {
 		return dispatchAuthHostService(ctx, hcc, input.method, input.payload)
 	})
@@ -451,7 +456,10 @@ func registerPluginsHostService(registry *hostServiceDispatchRegistry) error {
 }
 
 func registerRouteHostService(registry *hostServiceDispatchRegistry) error {
-	return registerHostServiceMethod(registry, bridgehostservice.HostServiceRoute, bridgehostservice.HostServiceMethodRouteMetadataGet,
+	return registerHostServiceMethods(registry, bridgehostservice.HostServiceRoute, []string{
+		bridgehostservice.HostServiceMethodRouteMetadataGet,
+		bridgehostservice.HostServiceMethodRouteMachineAuthorizationsList,
+	},
 		func(ctx context.Context, hcc *hostCallContext, input hostServiceDispatchContext) *bridgehostcall.HostCallResponseEnvelope {
 			return dispatchRouteHostService(ctx, hcc, input.method, input.payload)
 		})

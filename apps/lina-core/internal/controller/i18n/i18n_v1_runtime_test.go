@@ -493,5 +493,5 @@ func newRuntimeMessagesTestMiddleware() middlewaresvc.Service {
 	)
 	roleSvc.SetDataScopeService(datascope.New(bizCtxSvc, roleSvc, orgCapSvc.Scope()))
 	authSvc := auth.New(configSvc, pluginRuntime, orgCapSvc, roleSvc, tenantSvc, session.NewDBStore(), kvcache.New())
-	return middlewaresvc.New(authSvc, bizCtxSvc, configSvc, i18nSvc, roleSvc, tenantSvc)
+	return middlewaresvc.New(authSvc, bizCtxSvc, configSvc, i18nSvc, roleSvc, tenantSvc, nil)
 }

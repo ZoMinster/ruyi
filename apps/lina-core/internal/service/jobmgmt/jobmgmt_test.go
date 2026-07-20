@@ -24,6 +24,7 @@ import (
 	"lina-core/internal/service/jobhandler"
 	"lina-core/internal/service/jobmeta"
 	"lina-core/internal/service/role"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
@@ -82,6 +83,8 @@ func (s jobmgmtStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by job-management service tests.
 func (s jobmgmtStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s jobmgmtStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by job-management service tests.
 func (s jobmgmtStaticBizCtx) SetTenant(context.Context, int) {}

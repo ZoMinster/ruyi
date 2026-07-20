@@ -18,14 +18,15 @@ import (
 	"lina-core/internal/model"
 	"lina-core/internal/model/do"
 	"lina-core/internal/model/entity"
-	storagesvc "lina-core/internal/service/storage"
 	"lina-core/internal/service/bizctx"
 	"lina-core/internal/service/cachecoord"
 	hostconfig "lina-core/internal/service/config"
 	"lina-core/internal/service/datascope"
 	i18nsvc "lina-core/internal/service/i18n"
 	rolesvc "lina-core/internal/service/role"
+	storagesvc "lina-core/internal/service/storage"
 	"lina-core/pkg/bizerr"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/orgcap"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -189,7 +190,6 @@ func (s *fileTenantUploadStorage) Put(_ context.Context, in storagesvc.PutInput)
 	return &storagesvc.PutOutput{Object: &storagesvc.Object{Key: in.Key}}, nil
 }
 
-
 // fileTenantUploadAccessProvider grants tenant-wide visibility for the upload
 // regression test without relying on persisted role fixtures.
 type fileTenantUploadAccessProvider struct {
@@ -233,6 +233,8 @@ func (s fileScopeStaticBizCtx) SetLocale(context.Context, string) {}
 
 // SetUser is unused by file data-scope tests.
 func (s fileScopeStaticBizCtx) SetUser(context.Context, string, int, string, int, string) {}
+
+func (s fileScopeStaticBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant is unused by file data-scope tests.
 func (s fileScopeStaticBizCtx) SetTenant(context.Context, int) {}

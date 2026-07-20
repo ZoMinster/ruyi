@@ -37,6 +37,7 @@ import (
 	"lina-core/pkg/plugin/capability"
 	"lina-core/pkg/plugin/capability/apidoccap"
 	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/cachecap"
 	"lina-core/pkg/plugin/capability/capmodel"
@@ -253,6 +254,10 @@ func newTestServiceWithTopologyAndTenantDeps(
 		}
 	}
 	capabilities := newRootTestCapabilities(bizCtxProvider, pluginRuntime)
+	authProviders, err := authspi.NewManager(pluginRuntime, pluginRuntime.AuthenticationProviderEnv)
+	if err != nil {
+		return nil, err
+	}
 	if topology != nil && topology.IsEnabled() {
 		coordSvc := coordination.NewMemory(nil)
 		lockerSvc := locker.New()
@@ -275,6 +280,8 @@ func newTestServiceWithTopologyAndTenantDeps(
 			tenantSvc,
 			NewPluginConfigFactory("", ""),
 			NewHostConfigService(configProvider),
+			authProviders,
+			authcap.NewRouteAuthorizationCatalogue(),
 		)
 		if err != nil {
 			return nil, err
@@ -305,6 +312,8 @@ func newTestServiceWithTopologyAndTenantDeps(
 		tenantSvc,
 		NewPluginConfigFactory("", ""),
 		NewHostConfigService(configProvider),
+		authProviders,
+		authcap.NewRouteAuthorizationCatalogue(),
 	)
 	if err != nil {
 		return nil, err
@@ -733,6 +742,8 @@ func (rootNoopPlugins) ProvisionTenantPluginDefaults(context.Context, capmodel.D
 // returns a construction error when callers omit critical runtime dependencies.
 func TestNewRequiresExplicitRuntimeDependencies(t *testing.T) {
 	if _, err := New(
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,

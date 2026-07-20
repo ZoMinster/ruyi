@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogf/gf/v2/errors/gerror"
 
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/capmodel"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -130,8 +131,14 @@ func TestProviderDeclarationsStoreFactories(t *testing.T) {
 	orgFactory := func(context.Context, orgspi.ProviderEnv) (orgspi.Provider, error) {
 		return nil, nil
 	}
+	authFactory := func(context.Context, authspi.ProviderEnv) (authspi.Provider, error) {
+		return nil, nil
+	}
 	descriptor := testCapabilityDescriptor("test-plugin-provider", "ai", "v1", "text.generate")
 
+	if err := providers.ProvideAuthentication("lina-hmac-sha256", authFactory); err != nil {
+		t.Fatalf("expected authentication provider declaration to succeed, got %v", err)
+	}
 	if err := providers.ProvideTenant(tenantFactory); err != nil {
 		t.Fatalf("expected tenant provider declaration to succeed, got %v", err)
 	}
@@ -149,6 +156,9 @@ func TestProviderDeclarationsStoreFactories(t *testing.T) {
 	if definition.GetOrgProviderFactory() == nil {
 		t.Fatalf("expected org provider factory to be stored")
 	}
+	if factories := definition.GetAuthenticationProviderFactories(); factories["LINA-HMAC-SHA256"] == nil {
+		t.Fatalf("expected normalized authentication provider factory to be stored")
+	}
 	if descriptors := definition.GetCapabilityDescriptors(); len(descriptors) != 1 || descriptors[0].Service != "ai" {
 		t.Fatalf("expected capability descriptor to be stored, got %#v", descriptors)
 	}
@@ -157,6 +167,9 @@ func TestProviderDeclarationsStoreFactories(t *testing.T) {
 	}
 	if err := providers.ProvideOrg(orgFactory); err == nil {
 		t.Fatalf("expected duplicate org provider declaration to fail")
+	}
+	if err := providers.ProvideAuthentication("LINA-HMAC-SHA256", authFactory); err == nil {
+		t.Fatalf("expected duplicate authentication scheme declaration to fail")
 	}
 	if err := providers.ProvideCapability(descriptor); err == nil {
 		t.Fatalf("expected duplicate capability descriptor declaration to fail")
@@ -217,6 +230,9 @@ func TestProviderDeclarationsRejectNilFactories(t *testing.T) {
 	}
 	if err := providers.ProvideOrg(nil); err == nil {
 		t.Fatalf("expected nil org provider factory to fail")
+	}
+	if err := providers.ProvideAuthentication("LINA-HMAC-SHA256", nil); err == nil {
+		t.Fatalf("expected nil authentication provider factory to fail")
 	}
 	if err := providers.ProvideCapability(capregistry.Descriptor{}); err == nil {
 		t.Fatalf("expected invalid capability descriptor to fail")

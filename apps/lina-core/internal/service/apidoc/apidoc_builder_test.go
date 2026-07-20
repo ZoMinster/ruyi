@@ -19,6 +19,7 @@ import (
 	"lina-core/internal/service/cachecoord"
 	configsvc "lina-core/internal/service/config"
 	i18nsvc "lina-core/internal/service/i18n"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/pluginhost"
 )
 
@@ -36,7 +37,7 @@ type testPluginRouteProvider struct {
 
 // testHostListReq defines one host-owned DTO route used in apidoc builder tests.
 type testHostListReq struct {
-	g.Meta  `path:"/host/items" method:"get" tags:"User Management" summary:"Get user list" dc:"Query the paginated user list, support filtering by user name, nickname, status, mobile phone number, gender, department, creation time and other conditions, support custom sorting"`
+	g.Meta  `path:"/host/items" method:"get" tags:"User Management" summary:"Get user list" dc:"Query the paginated user list, support filtering by user name, nickname, status, mobile phone number, gender, department, creation time and other conditions, support custom sorting" operation:"host.items.list" resource:"host.items" action:"read" actors:"user,machine"`
 	PageNum int `json:"pageNum" d:"1" v:"min:1" dc:"Page number" eg:"1"`
 }
 
@@ -56,7 +57,7 @@ type testHostExportRes struct{}
 
 // testSourceEnabledReq defines one enabled source-plugin DTO route used in tests.
 type testSourceEnabledReq struct {
-	g.Meta `path:"/plugins/enabled/ping" method:"get" tags:"Source Plugin Demo" summary:"Query source plugin example public ping" dc:"Return source plugin example public ping information."`
+	g.Meta `path:"/plugins/enabled/ping" method:"get" tags:"Source Plugin Demo" summary:"Query source plugin example public ping" dc:"Return source plugin example public ping information." operation:"source.ping.read" resource:"source.ping" action:"read" actors:"machine"`
 }
 
 // testSourceEnabledRes is the response DTO for the enabled source-plugin handler.
@@ -130,6 +131,55 @@ func testSourceDisabledHandler(ctx context.Context, req *testSourceDisabledReq) 
 	return &testSourceDisabledRes{}, nil
 }
 
+// newTestRouteAuthorizationCatalogue publishes host, source, and dynamic
+// machine routes through the same catalog used by production startup.
+func newTestRouteAuthorizationCatalogue(t *testing.T) authcap.RouteAuthorizationCatalogue {
+	t.Helper()
+	catalog := authcap.NewRouteAuthorizationCatalogue()
+	routesByOwner := map[string][]authcap.RouteAuthorization{
+		authcap.RouteAuthorizationOwnerKey(authcap.RouteOwnerKindHost, "lina-core"): {
+			{
+				OwnerKind: authcap.RouteOwnerKindHost,
+				OwnerID:   "lina-core",
+				Method:    "GET",
+				Path:      "/api/v1/host/items",
+				Operation: "host.items.list",
+				Resource:  "host.items",
+				Access:    authcap.AccessModeRead,
+				Actors:    []authcap.ActorKind{authcap.ActorKindUser, authcap.ActorKindMachine},
+			},
+		},
+		authcap.RouteAuthorizationOwnerKey(authcap.RouteOwnerKindSourcePlugin, "plugin-dev-source-enabled"): {
+			{
+				OwnerKind: authcap.RouteOwnerKindSourcePlugin,
+				OwnerID:   "plugin-dev-source-enabled",
+				Method:    "GET",
+				Path:      "/api/v1/plugins/enabled/ping",
+				Operation: "source.ping.read",
+				Resource:  "source.ping",
+				Access:    authcap.AccessModeRead,
+				Actors:    []authcap.ActorKind{authcap.ActorKindMachine},
+			},
+		},
+		authcap.RouteAuthorizationOwnerKey(authcap.RouteOwnerKindDynamicPlugin, "linapro-demo-dynamic"): {
+			{
+				OwnerKind: authcap.RouteOwnerKindDynamicPlugin,
+				OwnerID:   "linapro-demo-dynamic",
+				Method:    "GET",
+				Path:      "/api/v1/backend-summary",
+				Operation: "dynamic.backend.summary",
+				Resource:  "dynamic.backend",
+				Access:    authcap.AccessModeRead,
+				Actors:    []authcap.ActorKind{authcap.ActorKindUser, authcap.ActorKindMachine},
+			},
+		},
+	}
+	if err := catalog.ReplaceAll(routesByOwner); err != nil {
+		t.Fatalf("publish test route authorization catalog: %v", err)
+	}
+	return catalog
+}
+
 // TestBuildProjectsHostAndEnabledPluginRoutes verifies the host-managed OpenAPI
 // document keeps host routes, filters disabled source routes, and includes
 // dynamic-plugin projections.
@@ -170,7 +220,13 @@ func TestBuildProjectsHostAndEnabledPluginRoutes(t *testing.T) {
 		},
 	}
 
-	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), pluginProvider)
+	service := New(
+		&testConfigProvider{},
+		bizctx.New(),
+		i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)),
+		pluginProvider,
+		newTestRouteAuthorizationCatalogue(t),
+	)
 	document, err := service.Build(context.Background(), server)
 	if err != nil {
 		t.Fatalf("expected hosted apidoc build to succeed, got %v", err)
@@ -183,6 +239,9 @@ func TestBuildProjectsHostAndEnabledPluginRoutes(t *testing.T) {
 	}
 	if document.Security == nil {
 		t.Fatalf("expected hosted document to publish bearer security")
+	}
+	if _, ok := document.Components.SecuritySchemes["LinaHMAC"]; !ok {
+		t.Fatalf("expected hosted document to publish LinaHMAC security scheme")
 	}
 	if _, ok := document.Paths["/api/v1/host/items"]; !ok {
 		t.Fatalf("expected host static route to stay in hosted document")
@@ -198,6 +257,53 @@ func TestBuildProjectsHostAndEnabledPluginRoutes(t *testing.T) {
 	}
 	if _, ok := document.Paths["/x/linapro-demo-dynamic/api/v1/backend-summary"]; !ok {
 		t.Fatalf("expected dynamic-plugin route projection to stay available")
+	}
+
+	hostOperation := document.Paths["/api/v1/host/items"].Get
+	assertOpenAPIMachineProjection(t, hostOperation, "host.items.list", "host.items", "read", "user,machine", 2)
+	sourceOperation := document.Paths["/api/v1/plugins/enabled/ping"].Get
+	assertOpenAPIMachineProjection(t, sourceOperation, "source.ping.read", "source.ping", "read", "machine", 1)
+	dynamicOperation := document.Paths["/x/linapro-demo-dynamic/api/v1/backend-summary"].Get
+	assertOpenAPIMachineProjection(t, dynamicOperation, "dynamic.backend.summary", "dynamic.backend", "read", "user,machine", 2)
+	publicOperation := document.Paths["/api/v1/host/items/export"].Get
+	if publicOperation == nil || publicOperation.Security != nil {
+		t.Fatalf("expected route without machine metadata to inherit existing bearer security only")
+	}
+	if got := publicOperation.XExtensions[openAPIOperationExtension]; got != "" {
+		t.Fatalf("expected route without machine access to omit machine metadata, got %q", got)
+	}
+}
+
+func assertOpenAPIMachineProjection(
+	t *testing.T,
+	operation *goai.Operation,
+	expectedOperation string,
+	expectedResource string,
+	expectedAction string,
+	expectedActors string,
+	expectedSecurityCount int,
+) {
+	t.Helper()
+	if operation == nil || operation.Security == nil {
+		t.Fatalf("expected machine route %s to publish operation security", expectedOperation)
+	}
+	if len(*operation.Security) != expectedSecurityCount {
+		t.Fatalf("expected machine route %s to publish %d alternative security requirements, got %#v", expectedOperation, expectedSecurityCount, *operation.Security)
+	}
+	if _, ok := (*operation.Security)[len(*operation.Security)-1]["LinaHMAC"]; !ok {
+		t.Fatalf("expected machine route %s to publish LinaHMAC requirement, got %#v", expectedOperation, *operation.Security)
+	}
+	if got := operation.XExtensions[openAPIOperationExtension]; got != expectedOperation {
+		t.Fatalf("expected operation extension %q, got %q", expectedOperation, got)
+	}
+	if got := operation.XExtensions[openAPIResourceExtension]; got != expectedResource {
+		t.Fatalf("expected resource extension %q, got %q", expectedResource, got)
+	}
+	if got := operation.XExtensions[openAPIActionExtension]; got != expectedAction {
+		t.Fatalf("expected action extension %q, got %q", expectedAction, got)
+	}
+	if got := operation.XExtensions[openAPIActorsExtension]; got != expectedActors {
+		t.Fatalf("expected actors extension %q, got %q", expectedActors, got)
 	}
 }
 
@@ -237,7 +343,13 @@ func TestBuildLocalizesOpenAPIForRequestLocale(t *testing.T) {
 		gctx.StrKey("BizCtx"),
 		&model.Context{Locale: i18nsvc.EnglishLocale},
 	)
-	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), pluginProvider)
+	service := New(
+		&testConfigProvider{},
+		bizctx.New(),
+		i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)),
+		pluginProvider,
+		newTestRouteAuthorizationCatalogue(t),
+	)
 	document, err := service.Build(ctx, server)
 	if err != nil {
 		t.Fatalf("expected hosted apidoc build to succeed, got %v", err)
@@ -330,6 +442,9 @@ func TestBuildLocalizesOpenAPIForRequestLocale(t *testing.T) {
 	if zhDynamicOperation == nil || zhDynamicOperation.Summary != "查询动态插件后端执行摘要" {
 		t.Fatalf("expected dynamic-plugin operation summary to be localized to Chinese")
 	}
+	if got := zhDocument.Components.SecuritySchemes["LinaHMAC"].Value.Description; got != "LINA-HMAC-SHA256-V1 请求签名认证，需要 Authorization、X-Lina-Date、X-Lina-Nonce 和 X-Lina-Content-SHA256 请求头" {
+		t.Fatalf("expected LinaHMAC description to be localized, got %q", got)
+	}
 }
 
 // registerOpenAPITestCatalog injects test-only route translations into the
@@ -349,7 +464,7 @@ func registerOpenAPITestCatalog(locale string, entries map[string]string) func()
 // TestLocalizeSchemaTranslatesAlreadySeenDirectMetadata verifies recursive
 // cycle guards do not skip direct schema display text for shared schema nodes.
 func TestLocalizeSchemaTranslatesAlreadySeenDirectMetadata(t *testing.T) {
-	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), &testPluginRouteProvider{}).(*serviceImpl)
+	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), &testPluginRouteProvider{}, nil).(*serviceImpl)
 	localizer := &openAPILocalizer{
 		catalog: map[string]string{
 			"test.schema.title":   "Parameter ID",
@@ -387,7 +502,7 @@ func TestLocalizeSchemaTranslatesAlreadySeenDirectMetadata(t *testing.T) {
 // keeps generated entity and framework metadata exactly as its source provides
 // it when the empty en-US apidoc bundle has no translation entry.
 func TestEnglishLocalizerPreservesGeneratedSchemaMetadata(t *testing.T) {
-	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), &testPluginRouteProvider{}).(*serviceImpl)
+	service := New(&testConfigProvider{}, bizctx.New(), i18nsvc.New(bizctx.New(), configsvc.New(), cachecoord.Default(nil)), &testPluginRouteProvider{}, nil).(*serviceImpl)
 	localizer := &openAPILocalizer{
 		catalog: map[string]string{},
 	}

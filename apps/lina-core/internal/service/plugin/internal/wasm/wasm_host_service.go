@@ -16,6 +16,7 @@ import (
 	"lina-core/internal/service/plugin/internal/manifestresource"
 	"lina-core/internal/service/plugin/internal/pluginconfig"
 	"lina-core/pkg/plugin/capability"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/hostconfigcap"
@@ -231,6 +232,12 @@ func contextWithHostCallBizContext(ctx context.Context, hcc *hostCallContext) co
 	}
 	identity := hcc.identity
 	return bizctxcap.WithCurrentContext(ctx, bizctxcap.CurrentContext{
+		Actor: authcap.Actor{
+			Kind:         authcap.ActorKind(identity.ActorKind),
+			SubjectID:    identity.SubjectID,
+			CredentialID: identity.CredentialID,
+			TenantID:     int(identity.TenantId),
+		},
 		TokenID:              identity.TokenID,
 		UserID:               int(identity.UserID),
 		Username:             identity.Username,

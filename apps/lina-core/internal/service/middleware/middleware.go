@@ -11,6 +11,7 @@ import (
 	i18nsvc "lina-core/internal/service/i18n"
 	"lina-core/internal/service/role"
 	"lina-core/internal/service/session"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
 	"lina-core/pkg/plugin/pluginhost"
 )
@@ -46,22 +47,32 @@ var _ Service = (*serviceImpl)(nil)
 
 // serviceImpl implements Service.
 type serviceImpl struct {
-	authSvc   auth.Service    // Authentication service
-	bizCtxSvc bizctx.Service  // Business context service
-	configSvc config.Service  // Runtime configuration service
-	i18nSvc   i18nsvc.Service // i18nSvc resolves request locale and translation context.
-	roleSvc   role.Service    // Role and permission service
-	tenantSvc tenantspi.Service
+	authSvc       auth.Service    // Authentication service
+	bizCtxSvc     bizctx.Service  // Business context service
+	configSvc     config.Service  // Runtime configuration service
+	i18nSvc       i18nsvc.Service // i18nSvc resolves request locale and translation context.
+	roleSvc       role.Service    // Role and permission service
+	tenantSvc     tenantspi.Service
+	authProviders authspi.Dispatcher
 }
 
 // New creates a middleware service from explicit runtime-owned dependencies.
-func New(authSvc auth.Service, bizCtxSvc bizctx.Service, configSvc config.Service, i18nSvc i18nsvc.Service, roleSvc role.Service, tenantSvc tenantspi.Service) Service {
+func New(
+	authSvc auth.Service,
+	bizCtxSvc bizctx.Service,
+	configSvc config.Service,
+	i18nSvc i18nsvc.Service,
+	roleSvc role.Service,
+	tenantSvc tenantspi.Service,
+	authProviders authspi.Dispatcher,
+) Service {
 	return &serviceImpl{
-		authSvc:   authSvc,
-		bizCtxSvc: bizCtxSvc,
-		configSvc: configSvc,
-		i18nSvc:   i18nSvc,
-		roleSvc:   roleSvc,
-		tenantSvc: tenantSvc,
+		authSvc:       authSvc,
+		bizCtxSvc:     bizCtxSvc,
+		configSvc:     configSvc,
+		i18nSvc:       i18nSvc,
+		roleSvc:       roleSvc,
+		tenantSvc:     tenantSvc,
+		authProviders: authProviders,
 	}
 }

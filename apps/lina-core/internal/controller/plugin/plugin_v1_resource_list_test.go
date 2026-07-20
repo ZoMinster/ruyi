@@ -14,6 +14,7 @@ import (
 	i18nsvc "lina-core/internal/service/i18n"
 	pluginsvc "lina-core/internal/service/plugin"
 	"lina-core/internal/service/role"
+	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/bizctxcap"
 )
 
@@ -84,6 +85,8 @@ func (f *pluginResourceFakeBizCtx) SetUser(_ context.Context, tokenId string, us
 		f.ctx.ClientType = clientType
 	}
 }
+
+func (f *pluginResourceFakeBizCtx) SetActor(context.Context, authcap.Actor) {}
 
 // SetTenant records the current tenant snapshot.
 func (f *pluginResourceFakeBizCtx) SetTenant(_ context.Context, tenantId int) {

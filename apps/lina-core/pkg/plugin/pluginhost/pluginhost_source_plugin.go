@@ -6,6 +6,7 @@ package pluginhost
 import (
 	"io/fs"
 
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/capregistry"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
@@ -32,51 +33,53 @@ type sourcePlugin struct {
 	// access exposes grouped menu and permission access-control helpers.
 	access AccessDeclarations
 
-	embeddedFiles          fs.FS
-	tenantProvider         tenantspi.ProviderFactory
-	orgProvider            orgspi.ProviderFactory
-	capabilities           []capregistry.Descriptor
-	externalIdentities     []string
-	externalIdentityEngine extidspi.ProviderFactory
-	beforeInstall          SourcePluginBeforeLifecycleHandler
-	afterInstall           SourcePluginAfterLifecycleHandler
-	beforeEnable           SourcePluginBeforeLifecycleHandler
-	afterEnable            SourcePluginAfterLifecycleHandler
-	beforeUpgrade          SourcePluginBeforeUpgradeHandler
-	upgradeHandler         SourcePluginUpgradeHandler
-	afterUpgrade           SourcePluginUpgradeHandler
-	beforeDisable          SourcePluginBeforeLifecycleHandler
-	afterDisable           SourcePluginAfterLifecycleHandler
-	beforeUninstall        SourcePluginBeforeLifecycleHandler
-	afterUninstall         SourcePluginAfterLifecycleHandler
-	globalBeforeInstall    SourcePluginGlobalLifecycleHandler
-	globalBeforeEnable     SourcePluginGlobalLifecycleHandler
-	globalBeforeDisable    SourcePluginGlobalLifecycleHandler
-	globalBeforeUninstall  SourcePluginGlobalLifecycleHandler
-	beforeTenantDis        SourcePluginBeforeTenantLifecycleHandler
-	afterTenantDis         SourcePluginAfterTenantLifecycleHandler
-	beforeTenantDel        SourcePluginBeforeTenantLifecycleHandler
-	afterTenantDel         SourcePluginAfterTenantLifecycleHandler
-	beforeModeChange       SourcePluginBeforeInstallModeChangeHandler
-	afterModeChange        SourcePluginAfterInstallModeChangeHandler
-	uninstallHandler       SourcePluginUninstallHandler
-	hookHandlers           []*HookHandlerRegistration
-	routeRegistrars        []*RouteHandlerRegistration
-	jobRegistrars          []*JobHandlerRegistration
-	menuFilters            []*MenuFilterHandlerRegistration
-	permissionFilters      []*PermissionFilterHandlerRegistration
+	embeddedFiles           fs.FS
+	authenticationProviders map[string]authspi.ProviderFactory
+	tenantProvider          tenantspi.ProviderFactory
+	orgProvider             orgspi.ProviderFactory
+	capabilities            []capregistry.Descriptor
+	externalIdentities      []string
+	externalIdentityEngine  extidspi.ProviderFactory
+	beforeInstall           SourcePluginBeforeLifecycleHandler
+	afterInstall            SourcePluginAfterLifecycleHandler
+	beforeEnable            SourcePluginBeforeLifecycleHandler
+	afterEnable             SourcePluginAfterLifecycleHandler
+	beforeUpgrade           SourcePluginBeforeUpgradeHandler
+	upgradeHandler          SourcePluginUpgradeHandler
+	afterUpgrade            SourcePluginUpgradeHandler
+	beforeDisable           SourcePluginBeforeLifecycleHandler
+	afterDisable            SourcePluginAfterLifecycleHandler
+	beforeUninstall         SourcePluginBeforeLifecycleHandler
+	afterUninstall          SourcePluginAfterLifecycleHandler
+	globalBeforeInstall     SourcePluginGlobalLifecycleHandler
+	globalBeforeEnable      SourcePluginGlobalLifecycleHandler
+	globalBeforeDisable     SourcePluginGlobalLifecycleHandler
+	globalBeforeUninstall   SourcePluginGlobalLifecycleHandler
+	beforeTenantDis         SourcePluginBeforeTenantLifecycleHandler
+	afterTenantDis          SourcePluginAfterTenantLifecycleHandler
+	beforeTenantDel         SourcePluginBeforeTenantLifecycleHandler
+	afterTenantDel          SourcePluginAfterTenantLifecycleHandler
+	beforeModeChange        SourcePluginBeforeInstallModeChangeHandler
+	afterModeChange         SourcePluginAfterInstallModeChangeHandler
+	uninstallHandler        SourcePluginUninstallHandler
+	hookHandlers            []*HookHandlerRegistration
+	routeRegistrars         []*RouteHandlerRegistration
+	jobRegistrars           []*JobHandlerRegistration
+	menuFilters             []*MenuFilterHandlerRegistration
+	permissionFilters       []*PermissionFilterHandlerRegistration
 }
 
 // NewDeclarations creates and returns a new grouped source-plugin declarations facade.
 func NewDeclarations(id string) Declarations {
 	plugin := &sourcePlugin{
-		id:                id,
-		capabilities:      make([]capregistry.Descriptor, 0),
-		hookHandlers:      make([]*HookHandlerRegistration, 0),
-		routeRegistrars:   make([]*RouteHandlerRegistration, 0),
-		jobRegistrars:     make([]*JobHandlerRegistration, 0),
-		menuFilters:       make([]*MenuFilterHandlerRegistration, 0),
-		permissionFilters: make([]*PermissionFilterHandlerRegistration, 0),
+		id:                      id,
+		authenticationProviders: make(map[string]authspi.ProviderFactory),
+		capabilities:            make([]capregistry.Descriptor, 0),
+		hookHandlers:            make([]*HookHandlerRegistration, 0),
+		routeRegistrars:         make([]*RouteHandlerRegistration, 0),
+		jobRegistrars:           make([]*JobHandlerRegistration, 0),
+		menuFilters:             make([]*MenuFilterHandlerRegistration, 0),
+		permissionFilters:       make([]*PermissionFilterHandlerRegistration, 0),
 	}
 	plugin.assets = &sourcePluginAssets{plugin: plugin}
 	plugin.lifecycle = &sourcePluginLifecycle{plugin: plugin}
@@ -86,6 +89,18 @@ func NewDeclarations(id string) Declarations {
 	plugin.providers = &sourcePluginProviders{plugin: plugin}
 	plugin.access = &sourcePluginAccess{plugin: plugin}
 	return plugin
+}
+
+// GetAuthenticationProviderFactories returns a detached scheme-to-factory map.
+func (p *sourcePlugin) GetAuthenticationProviderFactories() map[string]authspi.ProviderFactory {
+	if p == nil || len(p.authenticationProviders) == 0 {
+		return map[string]authspi.ProviderFactory{}
+	}
+	factories := make(map[string]authspi.ProviderFactory, len(p.authenticationProviders))
+	for scheme, factory := range p.authenticationProviders {
+		factories[scheme] = factory
+	}
+	return factories
 }
 
 // useEmbeddedFiles binds one plugin-owned embedded filesystem to the source plugin.

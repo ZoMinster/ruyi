@@ -39,6 +39,8 @@ import (
 	sysinfosvc "lina-core/internal/service/sysinfo"
 	"lina-core/internal/service/user"
 	"lina-core/internal/service/usermsg"
+	"lina-core/pkg/plugin/capability/authcap"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
 )
@@ -229,21 +231,25 @@ func newRouteBindingTestRuntime(ctx context.Context) *httpRuntime {
 		jobMgmtSvc          = jobmgmtsvc.New(bizCtxSvc, configSvc, i18nService, jobRegistry, nil, scopeSvc)
 		hostConfigSvc       = pluginsvc.NewHostConfigService(configSvc)
 		pluginConfigFactory = pluginsvc.NewPluginConfigFactoryWithHostStaticConfig("", "", configSvc)
+		routeAuthorizations = authcap.NewRouteAuthorizationCatalogue()
 	)
 	hostLockSvc, err := hostlock.New(lockerSvc)
 	if err != nil {
 		panic(err)
 	}
 	capabilities, err := pluginsvc.NewHostServices(
-		apidoc.New(configSvc, bizCtxSvc, i18nService, pluginRuntime),
+		apidoc.New(configSvc, bizCtxSvc, i18nService, pluginRuntime, routeAuthorizations),
 		authSvc,
 		bizCtxSvc,
 		roleSvc,
 		hostConfigSvc,
 		scopeSvc,
 		cacheCoordSvc,
+		clusterSvc,
+		nil,
 		i18nService,
 		pluginRuntime,
+		routeAuthorizations,
 		pluginRuntime,
 		userSvc,
 		fileSvc,
@@ -257,6 +263,10 @@ func newRouteBindingTestRuntime(ctx context.Context) *httpRuntime {
 		storageRuntime,
 		localStorageProvider,
 	)
+	if err != nil {
+		panic(err)
+	}
+	authProviders, err := authspi.NewManager(pluginRuntime, pluginRuntime.AuthenticationProviderEnv)
 	if err != nil {
 		panic(err)
 	}
@@ -275,6 +285,8 @@ func newRouteBindingTestRuntime(ctx context.Context) *httpRuntime {
 		tenantSvc,
 		pluginConfigFactory,
 		hostConfigSvc,
+		authProviders,
+		routeAuthorizations,
 	)
 	if err != nil {
 		panic(err)
@@ -300,7 +312,7 @@ func newRouteBindingTestRuntime(ctx context.Context) *httpRuntime {
 		userMsgSvc:    userMsgSvc,
 		jobRegistry:   jobRegistry,
 		jobMgmtSvc:    jobMgmtSvc,
-		middlewareSvc: middleware.New(authSvc, bizCtxSvc, configSvc, i18nService, roleSvc, tenantSvc),
+		middlewareSvc: middleware.New(authSvc, bizCtxSvc, configSvc, i18nService, roleSvc, tenantSvc, authProviders),
 	}
 }
 

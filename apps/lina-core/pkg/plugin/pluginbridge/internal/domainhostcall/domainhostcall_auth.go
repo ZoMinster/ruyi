@@ -5,10 +5,12 @@ package domainhostcall
 
 import (
 	"context"
+	"time"
 
 	"lina-core/pkg/plugin/capability/authcap"
 	"lina-core/pkg/plugin/capability/authcap/authz"
 	"lina-core/pkg/plugin/capability/authcap/extlogin"
+	"lina-core/pkg/plugin/capability/authcap/machinecoord"
 	"lina-core/pkg/plugin/capability/authcap/token"
 	"lina-core/pkg/plugin/capability/capmodel"
 	"lina-core/pkg/plugin/pluginbridge/protocol"
@@ -22,6 +24,9 @@ type authTokenService struct{ baseService }
 
 // authzService adapts authorization reads to auth-domain host services.
 type authzService struct{ baseService }
+
+// authMachineCoordinationService adapts plugin-bound coordination calls.
+type authMachineCoordinationService struct{ baseService }
 
 // Auth creates the authentication and authorization guest namespace.
 func Auth(invoker Invoker) authcap.Service {
@@ -44,6 +49,82 @@ func (s authService) Authz() authz.Service {
 // (source: ProvideExternalIdentity; dynamic: auth hostService resource refs).
 func (s authService) ExternalLogin() extlogin.Service {
 	return externalLoginService{baseService: s.baseService}
+}
+
+// MachineCoordination returns plugin-bound machine access coordination methods.
+func (s authService) MachineCoordination() machinecoord.Service {
+	return authMachineCoordinationService{baseService: s.baseService}
+}
+
+// Configure declares the machine-access consistency contract.
+func (s authMachineCoordinationService) Configure(_ context.Context, maxStaleness time.Duration) error {
+	return s.callJSONRequest(
+		protocol.HostServiceAuth,
+		protocol.HostServiceMethodAuthMachineCoordinationConfigure,
+		machineCoordinationConfigureRequest{MaxStalenessMilliseconds: maxStaleness.Milliseconds()},
+		nil,
+	)
+}
+
+// ClusterEnabled reports whether this host requires shared coordination.
+func (s authMachineCoordinationService) ClusterEnabled() bool {
+	var out bool
+	if err := s.callJSONRequest(
+		protocol.HostServiceAuth,
+		protocol.HostServiceMethodAuthMachineCoordinationClusterEnabled,
+		nil,
+		&out,
+	); err != nil {
+		return false
+	}
+	return out
+}
+
+// CurrentRevision reads one tenant machine-access revision.
+func (s authMachineCoordinationService) CurrentRevision(_ context.Context, tenantID int) (int64, error) {
+	var out int64
+	err := s.callJSONRequest(
+		protocol.HostServiceAuth,
+		protocol.HostServiceMethodAuthMachineCoordinationCurrentRevision,
+		machineCoordinationTenantRequest{TenantID: tenantID},
+		&out,
+	)
+	return out, err
+}
+
+// MarkChanged publishes one post-commit machine-access revision.
+func (s authMachineCoordinationService) MarkChanged(
+	_ context.Context,
+	tenantID int,
+	reason machinecoord.ChangeReason,
+) (int64, error) {
+	var out int64
+	err := s.callJSONRequest(
+		protocol.HostServiceAuth,
+		protocol.HostServiceMethodAuthMachineCoordinationMarkChanged,
+		machineCoordinationMarkChangedRequest{TenantID: tenantID, Reason: reason},
+		&out,
+	)
+	return out, err
+}
+
+// ConsumeSharedReplay atomically consumes one shared replay digest.
+func (s authMachineCoordinationService) ConsumeSharedReplay(
+	_ context.Context,
+	tenantID int,
+	replayKeyDigest string,
+	ttl time.Duration,
+) (bool, error) {
+	var out bool
+	err := s.callJSONRequest(
+		protocol.HostServiceAuth,
+		protocol.HostServiceMethodAuthMachineCoordinationConsumeSharedReplay,
+		machineCoordinationReplayRequest{
+			TenantID: tenantID, ReplayKeyDigest: replayKeyDigest, TTLMilliseconds: ttl.Milliseconds(),
+		},
+		&out,
+	)
+	return out, err
 }
 
 // externalLoginService adapts external-login host service calls.
@@ -141,6 +222,25 @@ type authzReplaceRolePermissionsRequest struct {
 	Keys   []string `json:"keys"`
 }
 
+type machineCoordinationConfigureRequest struct {
+	MaxStalenessMilliseconds int64 `json:"maxStalenessMilliseconds"`
+}
+
+type machineCoordinationTenantRequest struct {
+	TenantID int `json:"tenantId"`
+}
+
+type machineCoordinationMarkChangedRequest struct {
+	TenantID int                       `json:"tenantId"`
+	Reason   machinecoord.ChangeReason `json:"reason"`
+}
+
+type machineCoordinationReplayRequest struct {
+	TenantID        int    `json:"tenantId"`
+	ReplayKeyDigest string `json:"replayKeyDigest"`
+	TTLMilliseconds int64  `json:"ttlMilliseconds"`
+}
+
 // permissionKeysToStrings converts permission keys to transport strings.
 func permissionKeysToStrings(ids []authz.PermissionKey) []string {
 	out := make([]string, 0, len(ids))
@@ -151,7 +251,8 @@ func permissionKeysToStrings(ids []authz.PermissionKey) []string {
 }
 
 var (
-	_ authcap.Service = (*authService)(nil)
-	_ token.Service   = (*authTokenService)(nil)
-	_ authz.Service   = (*authzService)(nil)
+	_ authcap.Service      = (*authService)(nil)
+	_ token.Service        = (*authTokenService)(nil)
+	_ authz.Service        = (*authzService)(nil)
+	_ machinecoord.Service = (*authMachineCoordinationService)(nil)
 )

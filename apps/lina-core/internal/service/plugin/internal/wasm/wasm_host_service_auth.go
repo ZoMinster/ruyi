@@ -7,9 +7,11 @@ package wasm
 import (
 	"context"
 	"strings"
+	"time"
 
 	"lina-core/pkg/plugin/capability/authcap/authz"
 	"lina-core/pkg/plugin/capability/authcap/extlogin"
+	"lina-core/pkg/plugin/capability/authcap/machinecoord"
 	"lina-core/pkg/plugin/capability/authcap/token"
 	bridgehostcall "lina-core/pkg/plugin/pluginbridge/protocol"
 	bridgehostservice "lina-core/pkg/plugin/pluginbridge/protocol"
@@ -32,6 +34,12 @@ func dispatchAuthHostService(
 		return dispatchAuthAuthorizationMethods(ctx, hcc, method, payload)
 	case bridgehostservice.HostServiceMethodAuthExternalLoginByVerifiedIdentity:
 		return dispatchAuthExternalLogin(ctx, hcc, payload)
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationConfigure,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationClusterEnabled,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationCurrentRevision,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationMarkChanged,
+		bridgehostservice.HostServiceMethodAuthMachineCoordinationConsumeSharedReplay:
+		return dispatchAuthMachineCoordination(ctx, hcc, method, payload)
 	}
 
 	services := capabilityServicesForHostCall(hcc)
@@ -70,6 +78,59 @@ func dispatchAuthHostService(
 		return domainCapabilityResult(true, err)
 	default:
 		return domainMethodNotFound("auth", method)
+	}
+}
+
+// dispatchAuthMachineCoordination routes plugin-bound revision and replay calls.
+func dispatchAuthMachineCoordination(
+	ctx context.Context,
+	hcc *hostCallContext,
+	method string,
+	payload []byte,
+) *bridgehostcall.HostCallResponseEnvelope {
+	services := capabilityServicesForHostCall(hcc)
+	if services == nil || services.Auth() == nil || services.Auth().MachineCoordination() == nil {
+		return domainServiceNotScoped("auth.machine_coordination")
+	}
+	service := services.Auth().MachineCoordination()
+	switch method {
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationConfigure:
+		var request machineCoordinationConfigureRequest
+		if err := decodeCapabilityJSONRequest(payload, &request); err != nil {
+			return invalidCapabilityRequest(err)
+		}
+		err := service.Configure(ctx, time.Duration(request.MaxStalenessMilliseconds)*time.Millisecond)
+		return domainCapabilityResult(true, err)
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationClusterEnabled:
+		return domainCapabilityResult(service.ClusterEnabled(), nil)
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationCurrentRevision:
+		var request machineCoordinationTenantRequest
+		if err := decodeCapabilityJSONRequest(payload, &request); err != nil {
+			return invalidCapabilityRequest(err)
+		}
+		result, err := service.CurrentRevision(ctx, request.TenantID)
+		return domainCapabilityResult(result, err)
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationMarkChanged:
+		var request machineCoordinationMarkChangedRequest
+		if err := decodeCapabilityJSONRequest(payload, &request); err != nil {
+			return invalidCapabilityRequest(err)
+		}
+		result, err := service.MarkChanged(ctx, request.TenantID, request.Reason)
+		return domainCapabilityResult(result, err)
+	case bridgehostservice.HostServiceMethodAuthMachineCoordinationConsumeSharedReplay:
+		var request machineCoordinationReplayRequest
+		if err := decodeCapabilityJSONRequest(payload, &request); err != nil {
+			return invalidCapabilityRequest(err)
+		}
+		result, err := service.ConsumeSharedReplay(
+			ctx,
+			request.TenantID,
+			request.ReplayKeyDigest,
+			time.Duration(request.TTLMilliseconds)*time.Millisecond,
+		)
+		return domainCapabilityResult(result, err)
+	default:
+		return domainMethodNotFound("auth.machine_coordination", method)
 	}
 }
 
@@ -193,6 +254,25 @@ type userIDRequest struct {
 type authzReplaceRolePermissionsRequest struct {
 	RoleID string   `json:"roleId"`
 	Keys   []string `json:"keys"`
+}
+
+type machineCoordinationConfigureRequest struct {
+	MaxStalenessMilliseconds int64 `json:"maxStalenessMilliseconds"`
+}
+
+type machineCoordinationTenantRequest struct {
+	TenantID int `json:"tenantId"`
+}
+
+type machineCoordinationMarkChangedRequest struct {
+	TenantID int                       `json:"tenantId"`
+	Reason   machinecoord.ChangeReason `json:"reason"`
+}
+
+type machineCoordinationReplayRequest struct {
+	TenantID        int    `json:"tenantId"`
+	ReplayKeyDigest string `json:"replayKeyDigest"`
+	TTLMilliseconds int64  `json:"ttlMilliseconds"`
 }
 
 // permissionKeys converts transport string identifiers into typed permission keys.

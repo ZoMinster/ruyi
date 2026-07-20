@@ -123,7 +123,7 @@ func (d *scopedSourceServicesDirectory) APIDoc() apidoccap.Service {
 // Auth returns a no-op auth namespace required by tenant-core and external-login
 // route registration (LDAP/OIDC plugins require ExternalLogin at register time).
 func (d *scopedSourceServicesDirectory) Auth() authcap.Service {
-	return authcap.New(scopedCapabilityAuth{}, scopedCapabilityAuthz{}, scopedCapabilityExternalLogin{})
+	return authcap.New(scopedCapabilityAuth{}, scopedCapabilityAuthz{}, scopedCapabilityExternalLogin{}, nil)
 }
 
 // BizCtx returns a minimal non-nil business context service required by source
@@ -676,6 +676,14 @@ type scopedCapabilityRoute struct{}
 // GetMetadata returns no dynamic-route metadata.
 func (scopedCapabilityRoute) GetMetadata(context.Context) *routecap.Metadata {
 	return nil
+}
+
+// ListMachineAuthorizations returns an empty route catalog in registration-only tests.
+func (scopedCapabilityRoute) ListMachineAuthorizations(
+	context.Context,
+	routecap.MachineAuthorizationListInput,
+) (*routecap.MachineAuthorizationCatalogue, error) {
+	return &routecap.MachineAuthorizationCatalogue{}, nil
 }
 
 // scopedCapabilitySession is an empty session fixture for registration-only tests.

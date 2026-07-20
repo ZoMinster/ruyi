@@ -30,6 +30,9 @@ const (
 	CapabilityAuthToken = "host:auth:token"
 	// CapabilityAuthz grants access to authorization-domain methods under auth.
 	CapabilityAuthz = "host:auth:authz"
+	// CapabilityAuthMachineCoordination grants access to plugin-bound machine
+	// access revision and replay coordination methods.
+	CapabilityAuthMachineCoordination = "host:auth:machine_coordination"
 	// CapabilityUsers grants access to host-defined user-domain capability services.
 	CapabilityUsers = "host:users"
 	// CapabilityBizCtx grants access to request business-context projections.

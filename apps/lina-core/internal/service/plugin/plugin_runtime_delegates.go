@@ -15,6 +15,7 @@ import (
 	"lina-core/internal/service/plugin/internal/catalog"
 	"lina-core/internal/service/plugin/internal/runtime"
 	"lina-core/internal/service/plugin/internal/wasm"
+	"lina-core/pkg/plugin/capability/authcap/authspi"
 	"lina-core/pkg/plugin/capability/authcap/extlogin/extidspi"
 	"lina-core/pkg/plugin/capability/orgcap/orgspi"
 	"lina-core/pkg/plugin/capability/tenantcap/tenantspi"
@@ -112,6 +113,18 @@ func (d *RuntimeDelegate) IsEnabled(ctx context.Context, pluginID string) bool {
 	return service != nil && service.IsEnabled(ctx, pluginID)
 }
 
+// ResolveBusinessEntryEnablement resolves plugin visibility after binding.
+func (d *RuntimeDelegate) ResolveBusinessEntryEnablement(
+	ctx context.Context,
+	pluginIDs []string,
+) (map[string]bool, error) {
+	service := d.serviceSnapshot()
+	if service == nil {
+		return nil, pluginRuntimeDelegateUnboundError()
+	}
+	return service.ResolveBusinessEntryEnablement(ctx, pluginIDs)
+}
+
 // IsEnabledAuthoritative reports authoritative plugin visibility after binding.
 func (d *RuntimeDelegate) IsEnabledAuthoritative(ctx context.Context, pluginID string) bool {
 	service := d.serviceSnapshot()
@@ -122,6 +135,15 @@ func (d *RuntimeDelegate) IsEnabledAuthoritative(ctx context.Context, pluginID s
 func (d *RuntimeDelegate) IsProviderEnabled(ctx context.Context, pluginID string) bool {
 	service := d.serviceSnapshot()
 	return service != nil && service.IsProviderEnabled(ctx, pluginID)
+}
+
+// AuthenticationProviderEnv returns authentication-provider construction inputs after binding.
+func (d *RuntimeDelegate) AuthenticationProviderEnv(ctx context.Context, pluginID string) authspi.ProviderEnv {
+	service := d.serviceSnapshot()
+	if service == nil {
+		return authspi.ProviderEnv{PluginID: pluginID}
+	}
+	return service.AuthenticationProviderEnv(ctx, pluginID)
 }
 
 // OrgProviderEnv returns organization-provider construction inputs after binding.

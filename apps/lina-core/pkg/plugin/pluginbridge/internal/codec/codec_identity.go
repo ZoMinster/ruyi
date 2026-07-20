@@ -59,6 +59,15 @@ func marshalIdentitySnapshot(in *IdentitySnapshotV1) []byte {
 	if in.IsImpersonation {
 		content = appendVarintField(content, 14, 1)
 	}
+	if value := strings.TrimSpace(in.ActorKind); value != "" {
+		content = appendStringField(content, 15, value)
+	}
+	if value := strings.TrimSpace(in.SubjectID); value != "" {
+		content = appendStringField(content, 16, value)
+	}
+	if value := strings.TrimSpace(in.CredentialID); value != "" {
+		content = appendStringField(content, 17, value)
+	}
 	return content
 }
 
@@ -71,6 +80,13 @@ func unmarshalIdentitySnapshot(content []byte, out *IdentitySnapshotV1) error {
 			return gerror.New("failed to decode identity snapshot tag")
 		}
 		content = content[length:]
+		if remaining, handled, err := unmarshalIdentityExtensionField(fieldNumber, content, out); handled {
+			if err != nil {
+				return err
+			}
+			content = remaining
+			continue
+		}
 		switch fieldNumber {
 		case 1:
 			value, size := protowire.ConsumeString(content)
@@ -142,34 +158,6 @@ func unmarshalIdentitySnapshot(content []byte, out *IdentitySnapshotV1) error {
 			}
 			out.UnsupportedDataScope = int32(value)
 			content = content[size:]
-		case 11:
-			value, size := protowire.ConsumeVarint(content)
-			if size < 0 {
-				return gerror.New("failed to decode identity snapshot tenantId")
-			}
-			out.TenantId = int32(value)
-			content = content[size:]
-		case 12:
-			value, size := protowire.ConsumeVarint(content)
-			if size < 0 {
-				return gerror.New("failed to decode identity snapshot actingUserId")
-			}
-			out.ActingUserId = int32(value)
-			content = content[size:]
-		case 13:
-			value, size := protowire.ConsumeVarint(content)
-			if size < 0 {
-				return gerror.New("failed to decode identity snapshot actingAsTenant")
-			}
-			out.ActingAsTenant = value > 0
-			content = content[size:]
-		case 14:
-			value, size := protowire.ConsumeVarint(content)
-			if size < 0 {
-				return gerror.New("failed to decode identity snapshot isImpersonation")
-			}
-			out.IsImpersonation = value > 0
-			content = content[size:]
 		default:
 			size := protowire.ConsumeFieldValue(fieldNumber, wireType, content)
 			if size < 0 {
@@ -179,4 +167,66 @@ func unmarshalIdentitySnapshot(content []byte, out *IdentitySnapshotV1) error {
 		}
 	}
 	return nil
+}
+
+// unmarshalIdentityExtensionField decodes tenant and machine-actor fields
+// added after the original user identity snapshot contract.
+func unmarshalIdentityExtensionField(
+	fieldNumber protowire.Number,
+	content []byte,
+	out *IdentitySnapshotV1,
+) ([]byte, bool, error) {
+	switch fieldNumber {
+	case 11:
+		value, size := protowire.ConsumeVarint(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot tenantId")
+		}
+		out.TenantId = int32(value)
+		return content[size:], true, nil
+	case 12:
+		value, size := protowire.ConsumeVarint(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot actingUserId")
+		}
+		out.ActingUserId = int32(value)
+		return content[size:], true, nil
+	case 13:
+		value, size := protowire.ConsumeVarint(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot actingAsTenant")
+		}
+		out.ActingAsTenant = value > 0
+		return content[size:], true, nil
+	case 14:
+		value, size := protowire.ConsumeVarint(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot isImpersonation")
+		}
+		out.IsImpersonation = value > 0
+		return content[size:], true, nil
+	case 15:
+		value, size := protowire.ConsumeString(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot actorKind")
+		}
+		out.ActorKind = value
+		return content[size:], true, nil
+	case 16:
+		value, size := protowire.ConsumeString(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot subjectId")
+		}
+		out.SubjectID = value
+		return content[size:], true, nil
+	case 17:
+		value, size := protowire.ConsumeString(content)
+		if size < 0 {
+			return content, true, gerror.New("failed to decode identity snapshot credentialId")
+		}
+		out.CredentialID = value
+		return content[size:], true, nil
+	default:
+		return content, false, nil
+	}
 }
